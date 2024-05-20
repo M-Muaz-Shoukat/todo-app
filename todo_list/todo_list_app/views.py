@@ -1,8 +1,13 @@
 from django.shortcuts import render, redirect
 from .models import Category, Task
+from django.contrib import messages
+from django.contrib.auth import authenticate, login, logout
 from django import forms
 # Create your views here.
 
+
+def login_user(request):
+    return  render(request, 'auth/login.html',{})
 
 def index(request):
     category_list = Category.objects.all()

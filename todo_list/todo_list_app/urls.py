@@ -10,4 +10,5 @@ urlpatterns = [
     path('category/<int:category_id>/tasks/create', views.category_task_create, name='category_task_create'),
     path('category/<int:category_id>/tasks/<int:task_id>/delete', views.category_task_delete, name='category_task_delete'),
     path('category/<int:category_id>/tasks/<int:task_id>/update', views.category_task_update, name='category_task_update'),
+    path('auth/login', views.login_user, name='auth_login'),
 ]
