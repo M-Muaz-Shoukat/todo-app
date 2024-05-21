@@ -1,5 +1,9 @@
-<h2>{{ category.name }} Tasks</h2>
-
+<h3><a href="{% url 'todo_list:index' %}"><strong><-- Back to Dashboard</strong></a></h3>
+<form method="get" action="{% url 'todo_list:tasks' %}">
+    <input type="text" name="q" placeholder="Search..." value="{{ query|default:'' }}">
+    <button type="submit">Search</button>
+</form>
+<h2>Tasks</h2>
 <table>
   <thead>
     <tr>
@@ -7,6 +11,7 @@
       <th>Description</th>
       <th>Due Date</th>
       <th>Completed</th>
+      <th>Category</th>
       <th>Update</th> <!-- New column for update button -->
       <th>Delete</th> <!-- New column for delete button -->
     </tr>
@@ -19,8 +24,9 @@
         <td>{{ task.description }}</td>
         <td>{{ task.due_date }}</td>
         <td>{{ task.completed }}</td>
-        <td><a href="{% url 'todo_list:category_task_update' category_id=category.id task_id=task.id %}">Update</a></td><!-- Update button -->
-        <td><a href="{% url 'todo_list:category_task_delete' category.id task.id %}">Delete</a></td> <!-- Delete button -->
+        <td>{{ task.category.name }}</td>
+        <td><a href="{% url 'todo_list:task_update' task.id %}">Update</a></td><!-- Update button -->
+        <td><a href="{% url 'todo_list:task_delete' task.id %}">Delete</a></td> <!-- Delete button -->
       </tr>
       {% endfor %}
     {% else %}
@@ -31,4 +37,4 @@
   </tbody>
 </table>
 
-<a href="{% url 'todo_list:category_task_create' category.id %}">Add Task</a>
+<a href="{% url 'todo_list:task_create' %}">Add Task</a>
