@@ -1,12 +1,13 @@
 from django.contrib.auth.models import User
 from django.shortcuts import render, redirect
-from .models import Category, Task
+from todo_list_app.models import Category, Task, Reminder
 from django.db.models import Q
 from django.contrib import messages
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.forms import UserCreationForm
 from django.contrib.auth.decorators import login_required
 from django import forms
+import pytz
 
 
 class LoginForm(forms.ModelForm):
@@ -20,7 +21,6 @@ def login_user(request):
         username = request.POST['username']
         password = request.POST['password']
         user = authenticate(request, username=username, password=password)
-        print(user)
         if user is not None:
             login(request, user)
             return redirect('todo_list:index')
@@ -129,6 +129,57 @@ class TaskForm(forms.ModelForm):
         fields = ['title', 'description', 'due_date', 'completed','category']
 
 
+class ReminderForm(forms.ModelForm):
+    class Meta:
+        model = Reminder
+        fields = ['remind_at']
+        widgets = {
+            'remind_at': forms.DateTimeInput(attrs={'type': 'datetime-local'}),
+        }
+
+
+def local_to_utc(request,reminder):
+    user_timezone = request.POST.get('timezone')
+    if user_timezone:
+        user_tz = pytz.timezone(user_timezone)
+    else:
+        user_tz = pytz.utc
+    reminder.remind_at = reminder.remind_at.replace(tzinfo=None)
+    reminder.remind_at = user_tz.localize(reminder.remind_at, is_dst=None)
+
+
+@login_required
+def create_reminder(request,task_id=None):
+    if request.method == 'POST':
+        form = ReminderForm(request.POST)
+        if form.is_valid():
+            reminder = form.save(commit=False)
+            local_to_utc(request,reminder)
+            reminder.user = request.user
+            reminder.task = Task.objects.get(id=task_id)
+            reminder.save()
+            return redirect('todo_list:tasks')
+    else:
+        form = ReminderForm()
+        return render(request, 'todo_list_app/create_reminder.html', {'form': form})
+
+
+@login_required
+def update_reminder(request,reminder_id=None):
+    reminder = Reminder.objects.filter(id=reminder_id).first()
+    if request.method == 'POST':
+        form = ReminderForm(request.POST,instance=reminder)
+        if form.is_valid():
+            reminder = form.save(commit=False)
+            local_to_utc(request, reminder)
+            reminder.save()
+            return redirect('todo_list:tasks')
+    else:
+        initial_data = {'remind_at': reminder.remind_at.strftime('%Y-%m-%d %H:%M:%S')}
+        form = ReminderForm(instance=reminder, initial=initial_data)
+        return render(request, 'todo_list_app/update_reminder.html', {'form': form})
+
+
 @login_required
 def tasks(request):
     query = request.GET.get('q')
@@ -137,12 +188,21 @@ def tasks(request):
         task_list = task_list.filter(
             Q(title__icontains=query) |
             Q(description__icontains=query) |
-            Q(category__name__icontains=query))
+            Q(category__name__icontains=query)
+        )
+
+    tasks_with_reminders = []
+    for task in task_list:
+        task_reminders = Reminder.objects.filter(task=task)
+        tasks_with_reminders.append({
+            'task': task,
+            'reminder': task_reminders[0] if task_reminders else None
+        })
+
     return render(request, 'todo_list_app/tasks.html', {
-        'task_list': task_list,
+        'tasks_with_reminders': tasks_with_reminders,
         'query': query
     })
-
 
 @login_required
 def task_delete(request, task_id):

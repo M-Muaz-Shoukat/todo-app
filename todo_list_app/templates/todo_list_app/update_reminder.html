@@ -1,0 +1,38 @@
+{#<h2>Reminder</h2>#}
+{##}
+{#<form method="POST">#}
+{#    {% csrf_token %}#}
+{#    {{ form.as_p }}#}
+{#    <button type="submit">Update Reminder</button>#}
+{#</form>#}
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <script>
+        document.addEventListener('DOMContentLoaded', (event) => {
+            const timezoneField = document.getElementById('timezone');
+            const userTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+            timezoneField.value = userTimezone
+            const remindAtField = document.getElementById('id_remind_at');
+            const remindAtUTC = new Date(remindAtField.value + 'Z');
+            const remindAtLocal = new Date(remindAtUTC.toLocaleString('en-US', { timeZone: userTimezone }));
+            const year = remindAtLocal.getFullYear();
+            const month = String(remindAtLocal.getMonth() + 1).padStart(2, '0');
+            const day = String(remindAtLocal.getDate()).padStart(2, '0');
+            const hours = String(remindAtLocal.getHours()).padStart(2, '0');
+            const minutes = String(remindAtLocal.getMinutes()).padStart(2, '0');
+            remindAtField.value = `${year}-${month}-${day}T${hours}:${minutes}`;
+        });
+    </script>
+</head>
+<body>
+    <h2>Update Reminder</h2>
+    <form method="post">
+        {% csrf_token %}
+        {{ form.as_p }}
+        <input type="hidden" id="timezone" name="timezone">
+        <button type="submit">Save Reminder</button>
+    </form>
+</body>
+</html>

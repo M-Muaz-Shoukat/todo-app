@@ -1,5 +1,7 @@
 from django.urls import path
-from . import views
+from todo_list_app import views
+from todo_list_app.tasks import check_and_send_reminders
+
 app_name = 'todo_list'
 urlpatterns = [
     path('', views.index, name='index'),
@@ -11,7 +13,13 @@ urlpatterns = [
     path('tasks/create', views.task_create, name='task_create'),
     path('tasks/<int:task_id>/delete', views.task_delete, name='task_delete'),
     path('tasks/<int:task_id>/update', views.task_update, name='task_update'),
+    path('tasks/<int:task_id>/reminder/create', views.create_reminder, name='reminder_create'),
+    path('tasks/reminder/<int:reminder_id>/update', views.update_reminder, name='reminder_update'),
     path('auth/login', views.login_user, name='login'),
     path('auth/logout', views.logout_user, name='logout'),
     path('auth/register', views.register_user, name='register'),
+
 ]
+
+# check_and_send_reminders.delay()
+# check_and_send_reminders()

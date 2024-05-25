@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <script>
+        document.addEventListener('DOMContentLoaded', (event) => {
+            const timezoneField = document.getElementById('timezone');
+            timezoneField.value = Intl.DateTimeFormat().resolvedOptions().timeZone;
+        });
+        function convertUTCToLocal(utcDateTimeString, elementId) {
+        const utcDateTime = new Date(utcDateTimeString + 'Z');
+        const options = {
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit',
+            hour12: true,
+        };
+        const localDateTimeString = utcDateTime.toLocaleString(undefined, options);
+        document.getElementById(elementId).innerText = 'Reminder set for ' + localDateTimeString;
+}
+
+    </script>
+</head>
+<body>
+    <h3><a href="{% url 'todo_list:index' %}"><strong><-- Back to Dashboard</strong></a></h3>
+<form method="get" action="{% url 'todo_list:tasks' %}">
+    <input type="text" name="q" placeholder="Search..." value="{{ query|default:'' }}">
+    <input type="hidden" id="timezone" name="timezone">
+    <button type="submit">Search</button>
+</form>
+<h2>Tasks</h2>
+<table>
+  <thead>
+    <tr>
+        <th>Name</th>
+        <th>Description</th>
+        <th>Due Date</th>
+        <th>Completed</th>
+        <th>Category</th>
+        <th>Update</th>
+        <th>Delete</th>
+        <th>Reminder</th>
+        <th>Update Reminder</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% if tasks_with_reminders %}
+      {% for tasks_with_reminder in tasks_with_reminders %}
+      <tr>
+        <td>{{ tasks_with_reminder.task.title }}</td>
+        <td>{{ tasks_with_reminder.task.description }}</td>
+        <td>{{ tasks_with_reminder.task.due_date }}</td>
+        <td>{{ tasks_with_reminder.task.completed }}</td>
+        <td>{{ tasks_with_reminder.task.category.name }}</td>
+        <td><a href="{% url 'todo_list:task_update' tasks_with_reminder.task.id %}">Update</a></td>
+        <td><a href="{% url 'todo_list:task_delete' tasks_with_reminder.task.id %}">Delete</a></td>
+        <td>
+          {% if tasks_with_reminder.reminder.remind_at %}
+            <span id="reminder-{{ forloop.counter }}">Reminder set for {{ tasks_with_reminder.reminder.remind_at|date:'Y-m-d\\TH:i:s' }}</span>
+            <script>
+              convertUTCToLocal("{{ tasks_with_reminder.reminder.remind_at|date:'Y-m-d\\TH:i:s' }}", "reminder-{{ forloop.counter }}");
+            </script>
+          {% else %}
+            <a href="{% url 'todo_list:reminder_create' tasks_with_reminder.task.id %}">Set Reminder</a>
+          {% endif %}
+        </td>
+        <td>
+            {% if tasks_with_reminder.reminder.id %}
+                {% if tasks_with_reminder.reminder.is_sent %}
+                Already reminded
+                {% else %}
+                    <a href="{% url 'todo_list:reminder_update' tasks_with_reminder.reminder.id %}">Change Reminder</a>
+                {% endif %}
+            {% else %}
+                Set Reminder First
+            {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    {% else %}
+      <tr>
+        <td colspan="9">No tasks available.</td>
+      </tr>
+    {% endif %}
+  </tbody>
+</table>
+
+<a href="{% url 'todo_list:task_create' %}">Add Task</a>
+
+</body>
+</html>

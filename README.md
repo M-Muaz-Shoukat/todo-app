@@ -7,6 +7,9 @@ This project is a simple Todo List application built with Django. It allows user
 - Create, read, update, and delete tasks
 - Categorize tasks into different categories
 - Mark tasks as completed
+- Set reminders for tasks
+- Automatic email reminders using Celery
+- Timezone-aware reminders and task scheduling
 - Simple and intuitive user interface
 
 ## Usage
@@ -41,6 +44,13 @@ To run this project locally, follow these steps:
    python manage.py runserver
 9. Open your web browser and navigate to http://127.0.0.1:8000/todo/categories to access the application.
 
-
-
-
+# Setting Up Celery and Redis
+- Start the Redis server:
+   ```bash
+  redis-server
+- Start the Celery worker:
+   ```bash
+   celery -A todo_list worker --loglevel=info --concurrency=1
+- Start the Celery Beat scheduler:
+   ```bash
+  celery -A todo_list beat --loglevel=info
