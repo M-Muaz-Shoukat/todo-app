@@ -46,10 +46,9 @@
         <th>Due Date</th>
         <th>Completed</th>
         <th>Category</th>
+        <th>Reminder</th>
         <th>Update</th>
         <th>Delete</th>
-        <th>Reminder</th>
-        <th>Update Reminder</th>
     </tr>
   </thead>
   <tbody>
@@ -61,8 +60,6 @@
         <td>{{ tasks_with_reminder.task.due_date }}</td>
         <td>{{ tasks_with_reminder.task.completed }}</td>
         <td>{{ tasks_with_reminder.task.category.name }}</td>
-        <td><a href="{% url 'todo_list:task_update' tasks_with_reminder.task.id %}">Update</a></td>
-        <td><a href="{% url 'todo_list:task_delete' tasks_with_reminder.task.id %}">Delete</a></td>
         <td>
           {% if tasks_with_reminder.reminder.remind_at %}
             <span id="reminder-{{ forloop.counter }}">Reminder set for {{ tasks_with_reminder.reminder.remind_at|date:'Y-m-d\\TH:i:s' }}</span>
@@ -70,20 +67,11 @@
               convertUTCToLocal("{{ tasks_with_reminder.reminder.remind_at|date:'Y-m-d\\TH:i:s' }}", "reminder-{{ forloop.counter }}");
             </script>
           {% else %}
-            <a href="{% url 'todo_list:reminder_create' tasks_with_reminder.task.id %}">Set Reminder</a>
+            <span>No Reminder</span>
           {% endif %}
         </td>
-        <td>
-            {% if tasks_with_reminder.reminder.id %}
-                {% if tasks_with_reminder.reminder.is_sent %}
-                Already reminded
-                {% else %}
-                    <a href="{% url 'todo_list:reminder_update' tasks_with_reminder.reminder.id %}">Change Reminder</a>
-                {% endif %}
-            {% else %}
-                Set Reminder First
-            {% endif %}
-        </td>
+        <td><a href="{% url 'todo_list:task_update' tasks_with_reminder.task.id %}">Update</a></td>
+        <td><a href="{% url 'todo_list:task_delete' tasks_with_reminder.task.id %}">Delete</a></td>
       </tr>
       {% endfor %}
     {% else %}

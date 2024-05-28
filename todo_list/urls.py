@@ -19,7 +19,6 @@ from django.urls import path,include
 from todo_list_app import views
 
 urlpatterns = [
-    # path('auth/', include('django.contrib.auth.urls')),
     path('todo/', include('todo_list_app.urls')),
     path('admin/', admin.site.urls),
     path('', views.index, name='index'),

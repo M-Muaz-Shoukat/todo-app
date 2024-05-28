@@ -35,7 +35,7 @@ class CategoryForm(forms.ModelForm):
 class TaskForm(forms.ModelForm):
     class Meta:
         model = Task
-        fields = ['title', 'description', 'due_date', 'completed','category']
+        fields = ['title', 'description', 'due_date', 'completed', 'category']
 
 
 class ReminderForm(forms.ModelForm):

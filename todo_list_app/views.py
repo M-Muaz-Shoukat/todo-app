@@ -1,4 +1,3 @@
-from django.contrib.auth.models import User
 from django.core.exceptions import ObjectDoesNotExist
 from django.shortcuts import render, redirect, get_object_or_404
 from todo_list_app.models import Category, Task, Reminder
@@ -6,8 +5,8 @@ from django.db.models import Q
 from django.contrib import messages
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.decorators import login_required
-from .forms import LoginForm, CustomUserCreationForm, ReminderForm, TaskForm, CategoryForm
-import pytz
+from .forms import LoginForm, CustomUserCreationForm, TaskForm, CategoryForm
+from todo_list_app.utility import reminder_create_or_update
 
 
 class LoginError(Exception):
@@ -61,23 +60,31 @@ def index(request):
 
 @login_required
 def all_categories(request):
-
     query = request.GET.get('q')
-    category_list = Category.objects.filter(user=request.user).values('id', 'name')
-    if query:
-        category_list = category_list.filter(name__icontains=query)
-    return render(request, 'todo_list_app/all_categories.html', {'category_list': category_list,'query':query})
+    category_list = Category.objects.filter(user=request.user, name__icontains=query if query else '')
+    return render(request, 'todo_list_app/all_categories.html', {'category_list': category_list, 'query': query})
 
 
 @login_required
 def delete_category(request, category_id):
-    Category.objects.get(id=category_id, user=request.user).delete()
-    return redirect('todo_list:all_categories')
+    try:
+        category = Category.objects.get(id=category_id, user=request.user)
+        if category is None:
+            raise ObjectDoesNotExist
+        category.delete()
+        return redirect('todo_list:all_categories')
+    except ObjectDoesNotExist:
+        messages.error(request, 'Category does not exist')
+        return redirect('todo_list:all_categories')
 
 
 @login_required
 def update_category(request, category_id):
-    category = Category.objects.get(id=category_id, user=request.user)
+    try:
+        category = get_object_or_404(Category, id=category_id, user=request.user)
+    except ObjectDoesNotExist:
+        messages.error(request, 'Category does not exist')
+        return redirect('todo_list:all_categories')
     if request.method == 'POST':
         name = request.POST.get('name')
         category.name = name
@@ -99,48 +106,6 @@ def create_category(request):
     else:
         form = CategoryForm()
         return render(request, 'todo_list_app/category_create.html', {'form': form})
-
-
-def local_to_utc(request,reminder):
-    user_timezone = request.POST.get('timezone')
-    if user_timezone:
-        user_tz = pytz.timezone(user_timezone)
-    else:
-        user_tz = pytz.utc
-    reminder.remind_at = reminder.remind_at.replace(tzinfo=None)
-    reminder.remind_at = user_tz.localize(reminder.remind_at, is_dst=None)
-
-
-@login_required
-def create_reminder(request,task_id=None):
-    if request.method == 'POST':
-        form = ReminderForm(request.POST)
-        if form.is_valid():
-            reminder = form.save(commit=False)
-            local_to_utc(request,reminder)
-            reminder.user = request.user
-            reminder.task = Task.objects.get(id=task_id)
-            reminder.save()
-            return redirect('todo_list:tasks')
-    else:
-        form = ReminderForm()
-        return render(request, 'todo_list_app/create_reminder.html', {'form': form})
-
-
-@login_required
-def update_reminder(request,reminder_id=None):
-    reminder = Reminder.objects.filter(id=reminder_id).first()
-    if request.method == 'POST':
-        form = ReminderForm(request.POST,instance=reminder)
-        if form.is_valid():
-            reminder = form.save(commit=False)
-            local_to_utc(request, reminder)
-            reminder.save()
-            return redirect('todo_list:tasks')
-    else:
-        initial_data = {'remind_at': reminder.remind_at.strftime('%Y-%m-%d %H:%M:%S')}
-        form = ReminderForm(instance=reminder, initial=initial_data)
-        return render(request, 'todo_list_app/update_reminder.html', {'form': form})
 
 
 @login_required
@@ -183,7 +148,7 @@ def tasks(request):
 @login_required
 def task_delete(request, task_id):
     try:
-        task = get_object_or_404(Task,id=task_id, category__user=request.user)
+        task = get_object_or_404(Task, id=task_id, category__user=request.user)
         task.delete()
         return redirect('todo_list:tasks')
     except ObjectDoesNotExist:
@@ -197,25 +162,48 @@ def task_create(request):
     if request.method == 'POST':
         form = TaskForm(request.POST)
         if form.is_valid():
-            form.save()
+            remind_at = request.POST.get('remind_at')
+            timezone = request.POST.get('timezone')
+            task = form.save()
+            if remind_at != '':
+                reminder = Reminder(remind_at=remind_at)
+                reminder_create_or_update(request.user, reminder, timezone, task.id)
             return redirect('todo_list:tasks')
     else:
         form = TaskForm()
-        return render(request, 'todo_list_app/task_create.html', {'form': form,'categories': categories})
+        return render(request, 'todo_list_app/task_create.html', {'form': form, 'categories': categories})
 
 
 @login_required
 def task_update(request, task_id):
-    task = Task.objects.get(id=task_id)
+    try:
+        task = get_object_or_404(Task, id=task_id)
+    except ObjectDoesNotExist:
+        messages.error(request, 'No such task')
+        return redirect('todo_list:tasks')
+    try:
+        reminder = Reminder.objects.get(task=task)
+    except Reminder.DoesNotExist:
+        reminder = None
+
     categories = Category.objects.filter(user=request.user)
     if request.method == 'POST':
-        form = TaskForm(request.POST,instance=task)
+        form = TaskForm(request.POST, instance=task)
         if form.is_valid():
-            form.save()
+            remind_at = request.POST.get('remind_at')
+            timezone = request.POST.get('timezone')
+            task = form.save()
+            if remind_at != '':
+                if reminder is None:
+                    reminder = Reminder(remind_at=remind_at)
+                else:
+                    reminder.remind_at = remind_at
+                reminder_create_or_update(request.user, reminder, timezone, task.id)
+
         return redirect('todo_list:tasks')
     else:
         form = TaskForm()
         return render(request,
                       'todo_list_app/task_update.html',
                       {'task':
-                          task, 'categories': categories,'form': form})
+                           task, 'categories': categories, 'reminder': reminder, 'form': form})

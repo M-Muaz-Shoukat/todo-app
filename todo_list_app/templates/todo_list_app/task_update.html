@@ -1,3 +1,26 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <script>
+        document.addEventListener('DOMContentLoaded', (event) => {
+            const timezoneField = document.getElementById('timezone');
+            const userTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+            timezoneField.value = userTimezone
+            const remindAtField = document.getElementById('remind_at');
+            if(remindAtField.value){
+                const remindAtUTC = new Date(remindAtField.value + 'Z');
+            const remindAtLocal = new Date(remindAtUTC.toLocaleString('en-US', { timeZone: userTimezone }));
+            const year = remindAtLocal.getFullYear();
+            const month = String(remindAtLocal.getMonth() + 1).padStart(2, '0');
+            const day = String(remindAtLocal.getDate()).padStart(2, '0');
+            const hours = String(remindAtLocal.getHours()).padStart(2, '0');
+            const minutes = String(remindAtLocal.getMinutes()).padStart(2, '0');
+            remindAtField.value = `${year}-${month}-${day}T${hours}:${minutes}`;
+            }
+        });
+    </script>
+</head>
+<body>
 <h2>Update Task</h2>
 
 <form method="post">
@@ -22,6 +45,10 @@
             </option>
         {% endfor %}
     </select>
+    <br>
+    <label for="remind_at">Reminder:</label>
+    <input type="datetime-local" id="remind_at" name="remind_at" value="{{ reminder.remind_at|date:'Y-m-d\\TH:i' }}">
+    <input type="hidden" id="timezone" name="timezone">
     <br>
     <button type="submit">Update</button>
 </form>
