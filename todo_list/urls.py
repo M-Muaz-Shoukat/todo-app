@@ -16,9 +16,14 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import path,include
+from todo_list_app import views
 
 urlpatterns = [
-    path('todo/',include('django.contrib.auth.urls')),
+    # path('auth/', include('django.contrib.auth.urls')),
     path('todo/', include('todo_list_app.urls')),
     path('admin/', admin.site.urls),
+    path('', views.index, name='index'),
+    path('auth/login/', views.login_user, name='login'),
+    path('auth/logout', views.logout_user, name='logout'),
+    path('auth/register', views.register_user, name='register'),
 ]

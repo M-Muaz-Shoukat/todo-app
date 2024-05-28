@@ -1,32 +1,32 @@
 from django.contrib.auth.models import User
-from django.shortcuts import render, redirect
+from django.core.exceptions import ObjectDoesNotExist
+from django.shortcuts import render, redirect, get_object_or_404
 from todo_list_app.models import Category, Task, Reminder
 from django.db.models import Q
 from django.contrib import messages
 from django.contrib.auth import authenticate, login, logout
-from django.contrib.auth.forms import UserCreationForm
 from django.contrib.auth.decorators import login_required
-from django import forms
+from .forms import LoginForm, CustomUserCreationForm, ReminderForm, TaskForm, CategoryForm
 import pytz
 
 
-class LoginForm(forms.ModelForm):
-    class Meta:
-        model = User
-        fields = ['username', 'password']
+class LoginError(Exception):
+    pass
 
 
 def login_user(request):
     if request.method == 'POST':
-        username = request.POST['username']
-        password = request.POST['password']
-        user = authenticate(request, username=username, password=password)
-        if user is not None:
+        try:
+            username = request.POST['username']
+            password = request.POST['password']
+            user = authenticate(request, username=username, password=password)
+            if user is None:
+                raise LoginError('Invalid username or password')
             login(request, user)
-            return redirect('todo_list:index')
-        else:
-            messages.success(request, 'There was an error logging in.')
-            return redirect('todo_list:login')
+            return redirect('index')
+        except LoginError as e:
+            messages.error(request, str(e))
+            return redirect('login')
     else:
         form = LoginForm()
         return render(request, 'auth/login.html', {'form': form})
@@ -35,23 +35,7 @@ def login_user(request):
 def logout_user(request):
     logout(request)
     messages.success(request, 'You have been logged out.')
-    return redirect('todo_list:index')
-
-
-class CustomUserCreationForm(UserCreationForm):
-    email = forms.EmailField(required=True, help_text="Required. Enter a valid email address.")
-    first_name = forms.CharField(required=True, max_length=30)
-    last_name = forms.CharField(required=True, max_length=30)
-
-    class Meta:
-        model = User
-        fields = ("username", "first_name", "last_name", "email", "password1", "password2")
-
-    def clean_email(self):
-        email = self.cleaned_data.get('email')
-        if User.objects.filter(email=email).exists():
-            raise forms.ValidationError("A user with that email already exists.")
-        return email
+    return redirect('index')
 
 
 def register_user(request):
@@ -64,7 +48,7 @@ def register_user(request):
             user = authenticate(username=username, password=password)
             login(request, user)
             messages.success(request, 'You have been registered successfully.')
-            return redirect('todo_list:index')
+            return redirect('index')
     else:
         form = CustomUserCreationForm()
 
@@ -79,7 +63,7 @@ def index(request):
 def all_categories(request):
 
     query = request.GET.get('q')
-    category_list = Category.objects.filter(user=request.user)
+    category_list = Category.objects.filter(user=request.user).values('id', 'name')
     if query:
         category_list = category_list.filter(name__icontains=query)
     return render(request, 'todo_list_app/all_categories.html', {'category_list': category_list,'query':query})
@@ -89,12 +73,6 @@ def all_categories(request):
 def delete_category(request, category_id):
     Category.objects.get(id=category_id, user=request.user).delete()
     return redirect('todo_list:all_categories')
-
-
-class CategoryForm(forms.ModelForm):
-    class Meta:
-        model = Category
-        fields = ['name']
 
 
 @login_required
@@ -121,21 +99,6 @@ def create_category(request):
     else:
         form = CategoryForm()
         return render(request, 'todo_list_app/category_create.html', {'form': form})
-
-
-class TaskForm(forms.ModelForm):
-    class Meta:
-        model = Task
-        fields = ['title', 'description', 'due_date', 'completed','category']
-
-
-class ReminderForm(forms.ModelForm):
-    class Meta:
-        model = Reminder
-        fields = ['remind_at']
-        widgets = {
-            'remind_at': forms.DateTimeInput(attrs={'type': 'datetime-local'}),
-        }
 
 
 def local_to_utc(request,reminder):
@@ -183,31 +146,49 @@ def update_reminder(request,reminder_id=None):
 @login_required
 def tasks(request):
     query = request.GET.get('q')
-    task_list = Task.objects.filter(category__user=request.user)
-    if query:
-        task_list = task_list.filter(
-            Q(title__icontains=query) |
-            Q(description__icontains=query) |
-            Q(category__name__icontains=query)
-        )
+    try:
+        task_list = Task.objects.filter(category__user=request.user)
 
-    tasks_with_reminders = []
-    for task in task_list:
-        task_reminders = Reminder.objects.filter(task=task)
-        tasks_with_reminders.append({
-            'task': task,
-            'reminder': task_reminders[0] if task_reminders else None
+        if query:
+            task_list = task_list.filter(
+                Q(title__icontains=query) |
+                Q(description__icontains=query) |
+                Q(category__name__icontains=query)
+            )
+
+        tasks_with_reminders = []
+        for task in task_list:
+            try:
+                task_reminders = Reminder.objects.filter(task=task)
+                tasks_with_reminders.append({
+                    'task': task,
+                    'reminder': task_reminders[0] if task_reminders else None
+                })
+            except Reminder.DoesNotExist:
+                messages.error(request, f"Reminder for task {task.id} does not exist.")
+
+        return render(request, 'todo_list_app/tasks.html', {
+            'tasks_with_reminders': tasks_with_reminders,
+            'query': query
         })
 
-    return render(request, 'todo_list_app/tasks.html', {
-        'tasks_with_reminders': tasks_with_reminders,
-        'query': query
-    })
+    except Task.DoesNotExist:
+        messages.error(request, "No tasks found for the current user.")
+        return render(request, 'todo_list_app/tasks.html', {
+            'tasks_with_reminders': [],
+            'query': query
+        })
+
 
 @login_required
 def task_delete(request, task_id):
-    Task.objects.get(id=task_id, category__user=request.user).delete()
-    return redirect('todo_list:tasks')
+    try:
+        task = get_object_or_404(Task,id=task_id, category__user=request.user)
+        task.delete()
+        return redirect('todo_list:tasks')
+    except ObjectDoesNotExist:
+        messages.error(request, 'No such task')
+        return redirect('todo_list:tasks')
 
 
 @login_required

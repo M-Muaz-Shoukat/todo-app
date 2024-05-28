@@ -4,7 +4,6 @@ from todo_list_app.tasks import check_and_send_reminders
 
 app_name = 'todo_list'
 urlpatterns = [
-    path('', views.index, name='index'),
     path('categories/', views.all_categories, name='all_categories'),
     path('category/create', views.create_category, name='create_category'),
     path('category/<int:category_id>/update', views.update_category, name='category_update'),
@@ -15,11 +14,4 @@ urlpatterns = [
     path('tasks/<int:task_id>/update', views.task_update, name='task_update'),
     path('tasks/<int:task_id>/reminder/create', views.create_reminder, name='reminder_create'),
     path('tasks/reminder/<int:reminder_id>/update', views.update_reminder, name='reminder_update'),
-    path('auth/login', views.login_user, name='login'),
-    path('auth/logout', views.logout_user, name='logout'),
-    path('auth/register', views.register_user, name='register'),
-
 ]
-
-# check_and_send_reminders.delay()
-# check_and_send_reminders()

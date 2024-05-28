@@ -1,4 +1,4 @@
-<h3><a href="{% url 'todo_list:index' %}"><strong><-- Back to Dashboard</strong></a></h3>
+<h3><a href="{% url 'index' %}"><strong><-- Back to Dashboard</strong></a></h3>
 <form method="get" action="{% url 'todo_list:all_categories' %}">
     <input type="text" name="q" placeholder="Search..." value="{{ query|default:'' }}">
     <button type="submit">Search</button>

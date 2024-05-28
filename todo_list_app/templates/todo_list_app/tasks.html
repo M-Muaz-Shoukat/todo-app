@@ -24,7 +24,14 @@
     </script>
 </head>
 <body>
-    <h3><a href="{% url 'todo_list:index' %}"><strong><-- Back to Dashboard</strong></a></h3>
+    <h3><a href="{% url 'index' %}"><strong><-- Back to Dashboard</strong></a></h3>
+    <div style="color: red">
+    {% if messages %}
+        {% for message in messages %}
+        {{message}}
+        {% endfor %}
+    {% endif %}
+</div>
 <form method="get" action="{% url 'todo_list:tasks' %}">
     <input type="text" name="q" placeholder="Search..." value="{{ query|default:'' }}">
     <input type="hidden" id="timezone" name="timezone">
