@@ -32,18 +32,7 @@ To run this project locally, follow these steps:
    ```bash
    pip install -r requirements.txt
 6. Set up environment variables for PostgreSQL:
-   Create a .env file in the project root directory and add the following environment variables. Replace the placeholder values with your actual database credentials:
-   ```bash
-   SECRET_KEY=your_secret_key
-   
-   
-   DB_NAME=your_db_name
-   DB_USER=your_db_user
-   DB_PASSWORD=your_db_password
-   DB_HOST=your_db_host
-   DB_PORT=your_db_port
-
-Ensure your settings.py is configured to read these variables.
+   Rename the .env.example file to .env in the project root directory and fill the mentioned environment variables.
 7. Apply database migrations:
    ```bash
    python manage.py migrate
