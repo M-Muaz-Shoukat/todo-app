@@ -22,7 +22,13 @@
 </head>
 <body>
 <h2>Update Task</h2>
-
+<div style="color: red">
+    {% if messages %}
+        {% for message in messages %}
+        {{message}}
+        {% endfor %}
+    {% endif %}
+</div>
 <form method="post">
     {% csrf_token %}
     <label for="title">Title:</label>

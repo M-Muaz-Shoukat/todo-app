@@ -37,11 +37,3 @@ class TaskForm(forms.ModelForm):
         model = Task
         fields = ['title', 'description', 'due_date', 'completed', 'category']
 
-
-class ReminderForm(forms.ModelForm):
-    class Meta:
-        model = Reminder
-        fields = ['remind_at']
-        widgets = {
-            'remind_at': forms.DateTimeInput(attrs={'type': 'datetime-local'}),
-        }

@@ -169,6 +169,9 @@ def task_create(request):
                 reminder = Reminder(remind_at=remind_at)
                 reminder_create_or_update(request.user, reminder, timezone, task.id)
             return redirect('todo_list:tasks')
+        else:
+            messages.error(request,'Please fill all the input fields')
+            return render(request, 'todo_list_app/task_create.html', {'form': form, 'categories': categories})
     else:
         form = TaskForm()
         return render(request, 'todo_list_app/task_create.html', {'form': form, 'categories': categories})
@@ -199,8 +202,13 @@ def task_update(request, task_id):
                 else:
                     reminder.remind_at = remind_at
                 reminder_create_or_update(request.user, reminder, timezone, task.id)
-
-        return redirect('todo_list:tasks')
+            return redirect('todo_list:tasks')
+        else:
+            messages.error(request,'Please fill all the input fields')
+            return render(request,
+                          'todo_list_app/task_update.html',
+                          {'task':
+                               task, 'categories': categories, 'reminder': reminder, 'form': form})
     else:
         form = TaskForm()
         return render(request,
