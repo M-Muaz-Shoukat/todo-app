@@ -6,21 +6,23 @@ from django.contrib import messages
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.decorators import login_required
 from .forms import LoginForm, CustomUserCreationForm, TaskForm, CategoryForm, OTPForm
-from todo_list_app.utils import reminder_create_or_update, send_code_to_user
-from todo_list_app.models import OneTimePassword
+from todo_list_app.utils import reminder_create_or_update, send_code_to_user, verify_otp_code
+from django.utils.http import urlsafe_base64_encode, urlsafe_base64_decode
+from django.utils.encoding import smart_str, smart_bytes, force_str
+from todo_list_app.models import User
 
 
 class LoginError(Exception):
     pass
 
 
-def verify_user_email(request):
+def verify_user_email(request, user_id):
     if request.method == "POST":
         otp_code = request.POST['code']
         try:
-            user_code_obj = OneTimePassword.objects.get(code=otp_code)
-            user = user_code_obj.user
-            if not user.is_verified:
+            user_id = int(force_str(urlsafe_base64_decode(user_id)))
+            user = User.objects.get(id=user_id)
+            if verify_otp_code(otp_code, user_id):
                 user.is_verified = True
                 user.save()
             return redirect('login')
@@ -40,11 +42,11 @@ def login_user(request):
             user = authenticate(request, email=email, password=password)
             if user is None:
                 raise LoginError('Invalid username or password')
-            if user.is_verified:
-                login(request, user)
-            else:
+            if not user.is_verified:
                 messages.error(request, "Verify your email first")
                 return redirect('verify-email')
+            login(request, user)
+            messages.success(request, 'Logged In successfully.')
             return redirect('index')
         except LoginError as e:
             messages.error(request, str(e))
@@ -66,12 +68,11 @@ def register_user(request):
         if form.is_valid():
             form.save()
             email = form.cleaned_data.get('email')
-            password = form.cleaned_data.get('password')
+            password = form.cleaned_data.get('password1')
             user = authenticate(email=email, password=password)
-            send_code_to_user(email)
-            # login(request, user)
-            # messages.success(request, 'You have been registered successfully.')
-            return redirect('verify-email')
+            send_code_to_user(email, user.id)
+            encrypted_id = urlsafe_base64_encode(smart_bytes(user.id))
+            return redirect('verify-email',user_id=encrypted_id)
     else:
         form = CustomUserCreationForm()
 
