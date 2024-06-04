@@ -5,23 +5,46 @@ from django.db.models import Q
 from django.contrib import messages
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.decorators import login_required
-from .forms import LoginForm, CustomUserCreationForm, TaskForm, CategoryForm
-from todo_list_app.utility import reminder_create_or_update
+from .forms import LoginForm, CustomUserCreationForm, TaskForm, CategoryForm, OTPForm
+from todo_list_app.utils import reminder_create_or_update, send_code_to_user
+from todo_list_app.models import OneTimePassword
 
 
 class LoginError(Exception):
     pass
 
 
+def verify_user_email(request):
+    if request.method == "POST":
+        otp_code = request.POST['code']
+        try:
+            user_code_obj = OneTimePassword.objects.get(code=otp_code)
+            user = user_code_obj.user
+            if not user.is_verified:
+                user.is_verified = True
+                user.save()
+            return redirect('login')
+        except ObjectDoesNotExist:
+            messages.error(request, "Invalid Otp code try again")
+            return redirect('verify-email')
+    else:
+        form = OTPForm()
+        return render(request, 'auth/verify_email.html', {'form': form})
+
+
 def login_user(request):
     if request.method == 'POST':
         try:
-            username = request.POST['username']
+            email = request.POST['email']
             password = request.POST['password']
-            user = authenticate(request, username=username, password=password)
+            user = authenticate(request, email=email, password=password)
             if user is None:
                 raise LoginError('Invalid username or password')
-            login(request, user)
+            if user.is_verified:
+                login(request, user)
+            else:
+                messages.error(request, "Verify your email first")
+                return redirect('verify-email')
             return redirect('index')
         except LoginError as e:
             messages.error(request, str(e))
@@ -42,12 +65,13 @@ def register_user(request):
         form = CustomUserCreationForm(request.POST)
         if form.is_valid():
             form.save()
-            username = form.cleaned_data.get('username')
-            password = form.cleaned_data.get('password1')
-            user = authenticate(username=username, password=password)
-            login(request, user)
-            messages.success(request, 'You have been registered successfully.')
-            return redirect('index')
+            email = form.cleaned_data.get('email')
+            password = form.cleaned_data.get('password')
+            user = authenticate(email=email, password=password)
+            send_code_to_user(email)
+            # login(request, user)
+            # messages.success(request, 'You have been registered successfully.')
+            return redirect('verify-email')
     else:
         form = CustomUserCreationForm()
 
