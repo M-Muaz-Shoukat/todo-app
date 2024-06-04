@@ -21,7 +21,10 @@
 
 <form method="POST">
     {% csrf_token %}
-    {{ form.as_p }}
+    <div>
+        <label for="code">OTP Code</label>
+        <input type="text" id="code" name="code">
+    </div>
 
     <button type="submit">Verify</button>
 </form>

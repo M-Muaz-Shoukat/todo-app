@@ -5,7 +5,7 @@ from django.db.models import Q
 from django.contrib import messages
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.decorators import login_required
-from .forms import LoginForm, CustomUserCreationForm, TaskForm, CategoryForm, OTPForm
+from .forms import LoginForm, CustomUserCreationForm, TaskForm, CategoryForm
 from todo_list_app.utils import reminder_create_or_update, send_code_to_user, verify_otp_code
 from django.utils.http import urlsafe_base64_encode, urlsafe_base64_decode
 from django.utils.encoding import smart_str, smart_bytes, force_str
@@ -30,8 +30,7 @@ def verify_user_email(request, user_id):
             messages.error(request, "Invalid Otp code try again")
             return redirect('verify-email')
     else:
-        form = OTPForm()
-        return render(request, 'auth/verify_email.html', {'form': form})
+        return render(request, 'auth/verify_email.html')
 
 
 def login_user(request):

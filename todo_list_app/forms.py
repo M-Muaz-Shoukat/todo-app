@@ -1,7 +1,7 @@
 from django import forms
 from todo_list_app.models import User
 from django.contrib.auth.forms import UserCreationForm
-from todo_list_app.models import Category, Task, OneTimePassword
+from todo_list_app.models import Category, Task
 
 
 class LoginForm(forms.ModelForm):
@@ -36,9 +36,3 @@ class TaskForm(forms.ModelForm):
     class Meta:
         model = Task
         fields = ['title', 'description', 'due_date', 'completed', 'category']
-
-
-class OTPForm(forms.ModelForm):
-    class Meta:
-        model = OneTimePassword
-        fields = ['code']

@@ -1,6 +1,6 @@
 from todo_list_app.models.categories import Category
 from todo_list_app.models.tasks import Task
 from todo_list_app.models.reminder import Reminder
-from todo_list_app.models.users import User, OneTimePassword
+from todo_list_app.models.users import User
 
-__all__ = ['Category', 'Task', 'Reminder', 'User', 'OneTimePassword']
+__all__ = ['Category', 'Task', 'Reminder', 'User']
