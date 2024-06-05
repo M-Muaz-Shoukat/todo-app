@@ -10,6 +10,8 @@ from todo_list_app.utils import reminder_create_or_update, send_code_to_user, ve
 from django.utils.http import urlsafe_base64_encode, urlsafe_base64_decode
 from django.utils.encoding import smart_str, smart_bytes, force_str
 from todo_list_app.models import User
+from django.urls import reverse
+from django.utils.safestring import mark_safe
 
 
 class LoginError(Exception):
@@ -42,8 +44,13 @@ def login_user(request):
             if user is None:
                 raise LoginError('Invalid username or password')
             if not user.is_verified:
-                messages.error(request, "Verify your email first")
-                return redirect('verify-email')
+                send_code_to_user(user.email, user.id)
+                user_id = urlsafe_base64_encode(smart_bytes(user.id))
+                verify_url = reverse('verify-email', args=[user_id])
+                link = f"<a href='{verify_url}'>verify now</a>"
+                message = mark_safe(f"Verify your email first. Click here to {link}")
+                messages.error(request, message)
+                return redirect('login')
             login(request, user)
             messages.success(request, 'Logged In successfully.')
             return redirect('index')
