@@ -5,13 +5,13 @@ from django.db.models import Q
 from django.contrib import messages
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.decorators import login_required
-from .forms import LoginForm, CustomUserCreationForm, TaskForm, CategoryForm
+from .forms import LoginForm, TaskForm, CategoryForm
 from todo_list_app.utils import reminder_create_or_update, send_code_to_user, verify_otp_code
-from django.utils.http import urlsafe_base64_encode, urlsafe_base64_decode
+from django.utils.http import urlsafe_base64_decode
 from django.utils.encoding import smart_str, smart_bytes, force_str
 from todo_list_app.models import User
 from rest_framework.generics import GenericAPIView
-from todo_list_app.serializers import UserRegisterSerializer
+from todo_list_app.serializers import UserRegisterSerializer, UserLoginSerializer
 from rest_framework.response import Response
 from rest_framework import status
 
@@ -54,6 +54,15 @@ class VerifyUserEmailView(GenericAPIView):
             }, status=status.HTTP_204_NO_CONTENT)
         except ObjectDoesNotExist:
             return Response({'message': 'passcode not provided'}, status=status.HTTP_404_NOT_FOUND)
+
+
+class LoginUserView(GenericAPIView):
+    serializer_class = UserLoginSerializer
+
+    def post(self, request):
+        serializer = self.serializer_class(data=request.data,context={'request': request})
+        serializer.is_valid(raise_exception=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
 
 
 class LoginError(Exception):
