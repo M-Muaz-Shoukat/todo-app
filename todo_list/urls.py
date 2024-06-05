@@ -16,7 +16,7 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import path,include
-from todo_list_app.views import index, login_user,logout_user,verify_user_email, RegisterUserView
+from todo_list_app.views import index, login_user,logout_user,verify_user_email, RegisterUserView, VerifyUserEmailView
 
 urlpatterns = [
     path('todo/', include('todo_list_app.urls')),
@@ -25,5 +25,5 @@ urlpatterns = [
     path('auth/login/', login_user, name='login'),
     path('auth/logout', logout_user, name='logout'),
     path('auth/register/', RegisterUserView.as_view(), name='register'),
-    path('auth/verify-email/<user_id>/', verify_user_email, name='verify-email'),
+    path('auth/verify-email/', VerifyUserEmailView.as_view(), name='verify-email'),
 ]

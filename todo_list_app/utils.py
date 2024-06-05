@@ -8,6 +8,8 @@ from django.core.mail import send_mail
 from django.conf import settings
 from todo_list import settings
 from django.core.mail import EmailMessage
+from django.utils.http import urlsafe_base64_encode, urlsafe_base64_decode
+from django.utils.encoding import smart_str, smart_bytes, force_str
 
 
 def send_reminder_email(reminder):
@@ -44,8 +46,11 @@ redis_client = redis.StrictRedis.from_url(settings.CACHES['default']['LOCATION']
 def send_code_to_user(email, user_id):
     subject = "One Time Passcode for Email Verification"
     otp_code = generate_otp()
-    key = f"ev-{user_id}"
-    redis_client.set(key, str(otp_code), ex=120)
+    key = str(otp_code)
+    while redis_client.get(key) is not None:
+        otp_code = generate_otp()
+        key = str(otp_code)
+    redis_client.set(key, urlsafe_base64_encode(smart_bytes(user_id)), ex=120)
     print(otp_code)
     current_site = "TodoList.com"
     email_body = f"Hi thanks for signing up on {current_site}. Please verify your email with the \n one time passcode {otp_code}"
@@ -54,18 +59,14 @@ def send_code_to_user(email, user_id):
     d_email.send(fail_silently=True)
 
 
-def verify_otp_code(otp_entered, user_id):
-    key = f"ev-{user_id}"
-    otp_stored = redis_client.get(key)
+def verify_otp_code(otp_entered):
+    key = otp_entered
+    user_id = redis_client.get(key)
 
-    if otp_stored is None:
-        return False
-
-    if otp_stored.decode('utf-8') == otp_entered:
+    if user_id is not None:
         redis_client.delete(key)
-        return True
 
-    return False
+    return user_id
 
 
 def send_normal_email(data):

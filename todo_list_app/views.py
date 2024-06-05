@@ -1,6 +1,6 @@
 from django.core.exceptions import ObjectDoesNotExist
 from django.shortcuts import render, redirect, get_object_or_404
-from todo_list_app.models import Category, Task, Reminder
+from todo_list_app.models import Category, Task, Reminder, User
 from django.db.models import Q
 from django.contrib import messages
 from django.contrib.auth import authenticate, login, logout
@@ -23,32 +23,41 @@ class RegisterUserView(GenericAPIView):
         serializer = self.serializer_class(data=request.data)
         if serializer.is_valid(raise_exception=True):
             serializer.save()
-            user = serializer.data
-            # send_code_to_user(user['email'])
-            return Response({'data': user, 'message': f"hi thanks for signing up passcode"},
+            user_data = serializer.data
+            user = User.objects.get(email=user_data['email'])
+            send_code_to_user(user.email, user.id)
+            return Response({'data': user_data, 'message': "Hi, thanks for signing up. Passcode has been sent."},
                             status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
-class LoginError(Exception):
-    pass
+class VerifyUserEmailView(GenericAPIView):
 
-
-def verify_user_email(request, user_id):
-    if request.method == "POST":
-        otp_code = request.POST['code']
+    def post(self, request):
+        otp_code = request.data.get('code')
         try:
-            user_id = int(force_str(urlsafe_base64_decode(user_id)))
-            user = User.objects.get(id=user_id)
-            if verify_otp_code(otp_code, user_id):
+            user_id = verify_otp_code(otp_code)
+            if user_id is None:
+                return Response({
+                    'message': 'code is Invalid'
+                }, status=status.HTTP_404_NOT_FOUND)
+            user = User.objects.get(id=int(force_str(urlsafe_base64_decode(user_id.decode('utf-8')))))
+            if not user.is_verified:
                 user.is_verified = True
                 user.save()
-            return redirect('login')
+                return Response({
+                    'message': 'account email verified successfully!'
+                }, status=status.HTTP_200_OK)
+
+            return Response({
+                'message': 'code is invalid user already verified!'
+            }, status=status.HTTP_204_NO_CONTENT)
         except ObjectDoesNotExist:
-            messages.error(request, "Invalid Otp code try again")
-            return redirect('verify-email')
-    else:
-        return render(request, 'auth/verify_email.html')
+            return Response({'message': 'passcode not provided'}, status=status.HTTP_404_NOT_FOUND)
+
+
+class LoginError(Exception):
+    pass
 
 
 def login_user(request):
