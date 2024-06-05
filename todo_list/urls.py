@@ -16,14 +16,14 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import path,include
-from todo_list_app import views
+from todo_list_app.views import index, login_user,logout_user,verify_user_email, RegisterUserView
 
 urlpatterns = [
     path('todo/', include('todo_list_app.urls')),
     path('admin/', admin.site.urls),
-    path('', views.index, name='index'),
-    path('auth/login/', views.login_user, name='login'),
-    path('auth/logout', views.logout_user, name='logout'),
-    path('auth/register', views.register_user, name='register'),
-    path('auth/verify-email/<user_id>/', views.verify_user_email, name='verify-email'),
+    path('', index, name='index'),
+    path('auth/login/', login_user, name='login'),
+    path('auth/logout', logout_user, name='logout'),
+    path('auth/register/', RegisterUserView.as_view(), name='register'),
+    path('auth/verify-email/<user_id>/', verify_user_email, name='verify-email'),
 ]
