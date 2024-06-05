@@ -10,6 +10,24 @@ from todo_list_app.utils import reminder_create_or_update, send_code_to_user, ve
 from django.utils.http import urlsafe_base64_encode, urlsafe_base64_decode
 from django.utils.encoding import smart_str, smart_bytes, force_str
 from todo_list_app.models import User
+from rest_framework.generics import GenericAPIView
+from todo_list_app.serializers import UserRegisterSerializer
+from rest_framework.response import Response
+from rest_framework import status
+
+
+class RegisterUserView(GenericAPIView):
+    serializer_class = UserRegisterSerializer
+
+    def post(self, request):
+        serializer = self.serializer_class(data=request.data)
+        if serializer.is_valid(raise_exception=True):
+            serializer.save()
+            user = serializer.data
+            # send_code_to_user(user['email'])
+            return Response({'data': user, 'message': f"hi thanks for signing up passcode"},
+                            status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 from django.urls import reverse
 from django.utils.safestring import mark_safe
 
