@@ -6,22 +6,53 @@ from django.contrib import messages
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.decorators import login_required
 from .forms import LoginForm, CustomUserCreationForm, TaskForm, CategoryForm
-from todo_list_app.utility import reminder_create_or_update
+from todo_list_app.utils import reminder_create_or_update, send_code_to_user, verify_otp_code
+from django.utils.http import urlsafe_base64_encode, urlsafe_base64_decode
+from django.utils.encoding import smart_str, smart_bytes, force_str
+from todo_list_app.models import User
+from django.urls import reverse
+from django.utils.safestring import mark_safe
 
 
 class LoginError(Exception):
     pass
 
 
+def verify_user_email(request, user_id):
+    if request.method == "POST":
+        otp_code = request.POST['code']
+        try:
+            user_id = int(force_str(urlsafe_base64_decode(user_id)))
+            user = User.objects.get(id=user_id)
+            if verify_otp_code(otp_code, user_id):
+                user.is_verified = True
+                user.save()
+            return redirect('login')
+        except ObjectDoesNotExist:
+            messages.error(request, "Invalid Otp code try again")
+            return redirect('verify-email')
+    else:
+        return render(request, 'auth/verify_email.html')
+
+
 def login_user(request):
     if request.method == 'POST':
         try:
-            username = request.POST['username']
+            email = request.POST['email']
             password = request.POST['password']
-            user = authenticate(request, username=username, password=password)
+            user = authenticate(request, email=email, password=password)
             if user is None:
                 raise LoginError('Invalid username or password')
+            if not user.is_verified:
+                send_code_to_user(user.email, user.id)
+                user_id = urlsafe_base64_encode(smart_bytes(user.id))
+                verify_url = reverse('verify-email', args=[user_id])
+                link = f"<a href='{verify_url}'>verify now</a>"
+                message = mark_safe(f"Verify your email first. Click here to {link}")
+                messages.error(request, message)
+                return redirect('login')
             login(request, user)
+            messages.success(request, 'Logged In successfully.')
             return redirect('index')
         except LoginError as e:
             messages.error(request, str(e))
@@ -42,12 +73,12 @@ def register_user(request):
         form = CustomUserCreationForm(request.POST)
         if form.is_valid():
             form.save()
-            username = form.cleaned_data.get('username')
+            email = form.cleaned_data.get('email')
             password = form.cleaned_data.get('password1')
-            user = authenticate(username=username, password=password)
-            login(request, user)
-            messages.success(request, 'You have been registered successfully.')
-            return redirect('index')
+            user = authenticate(email=email, password=password)
+            send_code_to_user(email, user.id)
+            encrypted_id = urlsafe_base64_encode(smart_bytes(user.id))
+            return redirect('verify-email',user_id=encrypted_id)
     else:
         form = CustomUserCreationForm()
 

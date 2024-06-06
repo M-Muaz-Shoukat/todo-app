@@ -1,13 +1,13 @@
 from django import forms
-from django.contrib.auth.models import User
+from todo_list_app.models import User
 from django.contrib.auth.forms import UserCreationForm
-from todo_list_app.models import Category, Task, Reminder
+from todo_list_app.models import Category, Task
 
 
 class LoginForm(forms.ModelForm):
     class Meta:
         model = User
-        fields = ['username', 'password']
+        fields = ['email', 'password']
 
 
 class CustomUserCreationForm(UserCreationForm):
@@ -17,7 +17,7 @@ class CustomUserCreationForm(UserCreationForm):
 
     class Meta:
         model = User
-        fields = ("username", "first_name", "last_name", "email", "password1", "password2")
+        fields = ["first_name", "last_name", "email", "password1", "password2"]
 
     def clean_email(self):
         email = self.cleaned_data.get('email')
@@ -36,4 +36,3 @@ class TaskForm(forms.ModelForm):
     class Meta:
         model = Task
         fields = ['title', 'description', 'due_date', 'completed', 'category']
-
