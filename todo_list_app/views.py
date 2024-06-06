@@ -14,6 +14,8 @@ from rest_framework.generics import GenericAPIView
 from todo_list_app.serializers import UserRegisterSerializer
 from rest_framework.response import Response
 from rest_framework import status
+from django.urls import reverse
+from django.utils.safestring import mark_safe
 
 
 class RegisterUserView(GenericAPIView):
@@ -28,8 +30,6 @@ class RegisterUserView(GenericAPIView):
             return Response({'data': user, 'message': f"hi thanks for signing up passcode"},
                             status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-from django.urls import reverse
-from django.utils.safestring import mark_safe
 
 
 class LoginError(Exception):
