@@ -2,6 +2,9 @@ from rest_framework import serializers
 from todo_list_app.models import User
 from rest_framework.exceptions import AuthenticationFailed
 from django.contrib.auth import authenticate
+from todo_list_app.utils import send_code_to_user
+from django.utils.http import urlsafe_base64_encode
+from django.utils.encoding import smart_str, smart_bytes, force_str
 
 
 class UserRegisterSerializer(serializers.ModelSerializer):
@@ -48,9 +51,9 @@ class UserLoginSerializer(serializers.ModelSerializer):
         user = authenticate(request, email=email, password=password)
         if not user:
             raise AuthenticationFailed('Invalid credentials try again!')
-        if not user.is_verified:
-            raise AuthenticationFailed('Email is not verified!')
+
         user_token = user.tokens()
+
         return {
             'email': user.email,
             'full_name': user.get_full_name,

@@ -66,6 +66,16 @@ class LoginUserView(GenericAPIView):
     def post(self, request):
         serializer = self.serializer_class(data=request.data,context={'request': request})
         serializer.is_valid(raise_exception=True)
+        user = User.objects.get(email=serializer.data['email'])
+        if not user.is_verified:
+            send_code_to_user(user.email, user.id)
+            user_id = urlsafe_base64_encode(smart_bytes(user.id))
+            return Response({
+                'email': user.email,
+                'full_name': user.get_full_name,
+                'user_id': user_id,
+                'message': 'Email is not verified! An email has been sent to your Email Address Verify it.'
+            }, status=status.HTTP_208_ALREADY_REPORTED)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
 
