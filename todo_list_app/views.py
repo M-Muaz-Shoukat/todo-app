@@ -7,8 +7,8 @@ from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.decorators import login_required
 from .forms import TaskForm, CategoryForm
 from todo_list_app.utils import reminder_create_or_update, send_code_to_user, verify_otp_code
-from django.utils.http import urlsafe_base64_decode
-from django.utils.encoding import force_str
+from django.utils.http import urlsafe_base64_decode, urlsafe_base64_encode
+from django.utils.encoding import force_str, smart_bytes
 from todo_list_app.models import User
 from rest_framework.generics import GenericAPIView
 from todo_list_app.serializers import UserRegisterSerializer, UserLoginSerializer, LogoutSerializer
