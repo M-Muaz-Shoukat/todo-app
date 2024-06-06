@@ -9,6 +9,8 @@ from .forms import TaskForm, CategoryForm
 from todo_list_app.utils import reminder_create_or_update, send_code_to_user, verify_otp_code
 from django.utils.http import urlsafe_base64_decode, urlsafe_base64_encode
 from django.utils.encoding import force_str, smart_bytes
+from django.utils.http import urlsafe_base64_decode, urlsafe_base64_encode
+from django.utils.encoding import smart_str, smart_bytes, force_str
 from todo_list_app.models import User
 from rest_framework.generics import GenericAPIView
 from todo_list_app.serializers import UserRegisterSerializer, UserLoginSerializer, LogoutSerializer
@@ -67,6 +69,16 @@ class LoginUserView(GenericAPIView):
     def post(self, request):
         serializer = self.serializer_class(data=request.data,context={'request': request})
         serializer.is_valid(raise_exception=True)
+        user = User.objects.get(email=serializer.data['email'])
+        if not user.is_verified:
+            send_code_to_user(user.email, user.id)
+            user_id = urlsafe_base64_encode(smart_bytes(user.id))
+            return Response({
+                'email': user.email,
+                'full_name': user.get_full_name,
+                'user_id': user_id,
+                'message': 'Email is not verified! An email has been sent to your Email Address Verify it.'
+            }, status=status.HTTP_208_ALREADY_REPORTED)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
 
