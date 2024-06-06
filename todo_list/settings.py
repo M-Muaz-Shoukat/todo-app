@@ -117,10 +117,10 @@ DATABASES = {
 
 CACHES = {
     'default': {
-        'BACKEND': os.getenv('REDIS_BACKEND'),
+        'BACKEND': 'django_redis.cache.RedisCache',
         'LOCATION': os.getenv('REDIS_LOCATION'),
         'OPTIONS': {
-            'CLIENT_CLASS': os.getenv('REDIS_CLIENT_CLASS'),
+            'CLIENT_CLASS': 'django_redis.client.DefaultClient',
         }
     }
 }
