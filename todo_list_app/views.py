@@ -14,6 +14,8 @@ from rest_framework.generics import GenericAPIView
 from todo_list_app.serializers import UserRegisterSerializer, UserLoginSerializer
 from rest_framework.response import Response
 from rest_framework import status
+from django.urls import reverse
+from django.utils.safestring import mark_safe
 
 
 class RegisterUserView(GenericAPIView):
@@ -25,8 +27,9 @@ class RegisterUserView(GenericAPIView):
             serializer.save()
             user_data = serializer.data
             user = User.objects.get(email=user_data['email'])
-            send_code_to_user(user.email, user.id)
-            return Response({'data': user_data, 'message': "Hi, thanks for signing up. Passcode has been sent."},
+            send_code_to_user(user_data['email'], user.id)
+            user_id = urlsafe_base64_encode(smart_bytes(user.id))
+            return Response({'data': user_data, 'user_id': user_id, 'message': f"hi thanks for signing up passcode"},
                             status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
@@ -35,13 +38,14 @@ class VerifyUserEmailView(GenericAPIView):
 
     def post(self, request):
         otp_code = request.data.get('code')
+        user_id = request.data.get('user_id')
+        user_id = int(force_str(urlsafe_base64_decode(user_id)))
         try:
-            user_id = verify_otp_code(otp_code)
-            if user_id is None:
+            if not verify_otp_code(otp_code, user_id):
                 return Response({
                     'message': 'code is Invalid'
                 }, status=status.HTTP_404_NOT_FOUND)
-            user = User.objects.get(id=int(force_str(urlsafe_base64_decode(user_id.decode('utf-8')))))
+            user = User.objects.get(id=user_id)
             if not user.is_verified:
                 user.is_verified = True
                 user.save()
@@ -78,8 +82,13 @@ def login_user(request):
             if user is None:
                 raise LoginError('Invalid username or password')
             if not user.is_verified:
-                messages.error(request, "Verify your email first")
-                return redirect('verify-email')
+                send_code_to_user(user.email, user.id)
+                user_id = urlsafe_base64_encode(smart_bytes(user.id))
+                verify_url = reverse('verify-email', args=[user_id])
+                link = f"<a href='{verify_url}'>verify now</a>"
+                message = mark_safe(f"Verify your email first. Click here to {link}")
+                messages.error(request, message)
+                return redirect('login')
             login(request, user)
             messages.success(request, 'Logged In successfully.')
             return redirect('index')

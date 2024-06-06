@@ -1,6 +1,5 @@
 from django.urls import path
 from todo_list_app import views
-from todo_list_app.tasks import check_and_send_reminders
 
 app_name = 'todo_list'
 urlpatterns = [
