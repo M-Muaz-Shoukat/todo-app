@@ -16,7 +16,7 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import path,include
-from todo_list_app.views import index, login_user,logout_user,verify_user_email, RegisterUserView, VerifyUserEmailView
+from todo_list_app.views import index, login_user,logout_user, RegisterUserView, VerifyUserEmailView
 
 urlpatterns = [
     path('todo/', include('todo_list_app.urls')),
