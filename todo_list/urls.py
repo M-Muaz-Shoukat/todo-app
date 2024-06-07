@@ -22,8 +22,8 @@ urlpatterns = [
     path('todo/', include('todo_list_app.urls')),
     path('admin/', admin.site.urls),
     path('', index, name='index'),
-    path('auth/login/', login_user, name='login'),
+    path('auth/login', login_user, name='login'),
     path('auth/logout', logout_user, name='logout'),
-    path('auth/register/', RegisterUserView.as_view(), name='register'),
-    path('auth/verify-email/', VerifyUserEmailView.as_view(), name='verify-email'),
+    path('auth/register', RegisterUserView.as_view(), name='register'),
+    path('auth/verify-email', VerifyUserEmailView.as_view(), name='verify-email'),
 ]
