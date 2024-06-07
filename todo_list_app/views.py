@@ -5,10 +5,10 @@ from django.db.models import Q
 from django.contrib import messages
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.decorators import login_required
-from .forms import LoginForm, CustomUserCreationForm, TaskForm, CategoryForm
+from .forms import LoginForm, TaskForm, CategoryForm
 from todo_list_app.utils import reminder_create_or_update, send_code_to_user, verify_otp_code
 from django.utils.http import urlsafe_base64_encode, urlsafe_base64_decode
-from django.utils.encoding import smart_str, smart_bytes, force_str
+from django.utils.encoding import smart_bytes, force_str
 from todo_list_app.models import User
 from rest_framework.generics import GenericAPIView
 from todo_list_app.serializers import UserRegisterSerializer
@@ -18,6 +18,10 @@ from django.urls import reverse
 from django.utils.safestring import mark_safe
 
 
+class LoginError(Exception):
+    pass
+
+
 class RegisterUserView(GenericAPIView):
     serializer_class = UserRegisterSerializer
 
@@ -25,32 +29,44 @@ class RegisterUserView(GenericAPIView):
         serializer = self.serializer_class(data=request.data)
         if serializer.is_valid(raise_exception=True):
             serializer.save()
-            user = serializer.data
-            # send_code_to_user(user['email'])
-            return Response({'data': user, 'message': f"hi thanks for signing up passcode"},
+            user_data = serializer.data
+            user = User.objects.get(email=user_data['email'])
+            send_code_to_user(user_data['email'], user.id)
+            user_id = urlsafe_base64_encode(smart_bytes(user.id))
+            return Response({'data': user_data, 'user_id': user_id, 'message': f"Account Registered Successfully!"},
                             status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
-class LoginError(Exception):
-    pass
+class VerifyUserEmailView(GenericAPIView):
 
+    def post(self, request):
+        otp_code = request.data.get('code')
+        user_id = request.data.get('user_id')
+        if not user_id or not isinstance(user_id, str):
+            return Response({'message': 'Invalid user_id format'}, status=status.HTTP_400_BAD_REQUEST)
 
-def verify_user_email(request, user_id):
-    if request.method == "POST":
-        otp_code = request.POST['code']
         try:
             user_id = int(force_str(urlsafe_base64_decode(user_id)))
+            if not verify_otp_code(otp_code, user_id):
+                return Response({
+                    'message': 'Code is Invalid'
+                }, status=status.HTTP_404_NOT_FOUND)
             user = User.objects.get(id=user_id)
-            if verify_otp_code(otp_code, user_id):
+            if not user.is_verified:
                 user.is_verified = True
                 user.save()
-            return redirect('login')
+                return Response({
+                    'message': 'Account Email Verified Successfully!'
+                }, status=status.HTTP_200_OK)
+
+            return Response({
+                'message': 'User Already Verified!'
+            }, status=status.HTTP_204_NO_CONTENT)
         except ObjectDoesNotExist:
-            messages.error(request, "Invalid Otp code try again")
-            return redirect('verify-email')
-    else:
-        return render(request, 'auth/verify_email.html')
+            return Response({'message': 'Code not Provided'}, status=status.HTTP_404_NOT_FOUND)
+        except Exception as e:
+            return Response({'message': str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
 
 def login_user(request):
@@ -70,7 +86,7 @@ def login_user(request):
                 messages.error(request, message)
                 return redirect('login')
             login(request, user)
-            messages.success(request, 'Logged In successfully.')
+            messages.success(request, 'Logged In Successfully.')
             return redirect('index')
         except LoginError as e:
             messages.error(request, str(e))
@@ -82,25 +98,8 @@ def login_user(request):
 
 def logout_user(request):
     logout(request)
-    messages.success(request, 'You have been logged out.')
+    messages.success(request, 'You have been Logged Out.')
     return redirect('index')
-
-
-def register_user(request):
-    if request.method == 'POST':
-        form = CustomUserCreationForm(request.POST)
-        if form.is_valid():
-            form.save()
-            email = form.cleaned_data.get('email')
-            password = form.cleaned_data.get('password1')
-            user = authenticate(email=email, password=password)
-            send_code_to_user(email, user.id)
-            encrypted_id = urlsafe_base64_encode(smart_bytes(user.id))
-            return redirect('verify-email',user_id=encrypted_id)
-    else:
-        form = CustomUserCreationForm()
-
-    return render(request, 'auth/register.html', {'form': form})
 
 
 def index(request):
@@ -123,7 +122,7 @@ def delete_category(request, category_id):
         category.delete()
         return redirect('todo_list:all_categories')
     except ObjectDoesNotExist:
-        messages.error(request, 'Category does not exist')
+        messages.error(request, 'No Category Found!')
         return redirect('todo_list:all_categories')
 
 
@@ -132,7 +131,7 @@ def update_category(request, category_id):
     try:
         category = get_object_or_404(Category, id=category_id, user=request.user)
     except ObjectDoesNotExist:
-        messages.error(request, 'Category does not exist')
+        messages.error(request, 'No Category Found!')
         return redirect('todo_list:all_categories')
     if request.method == 'POST':
         name = request.POST.get('name')
@@ -179,7 +178,7 @@ def tasks(request):
                     'reminder': task_reminders[0] if task_reminders else None
                 })
             except Reminder.DoesNotExist:
-                messages.error(request, f"Reminder for task {task.id} does not exist.")
+                messages.error(request, f"Reminder does not exist for task {task.id}.")
 
         return render(request, 'todo_list_app/tasks.html', {
             'tasks_with_reminders': tasks_with_reminders,
@@ -187,7 +186,7 @@ def tasks(request):
         })
 
     except Task.DoesNotExist:
-        messages.error(request, "No tasks found for the current user.")
+        messages.error(request, "No Tasks Found for the current User.")
         return render(request, 'todo_list_app/tasks.html', {
             'tasks_with_reminders': [],
             'query': query
@@ -201,7 +200,7 @@ def task_delete(request, task_id):
         task.delete()
         return redirect('todo_list:tasks')
     except ObjectDoesNotExist:
-        messages.error(request, 'No such task')
+        messages.error(request, 'No Task Found!')
         return redirect('todo_list:tasks')
 
 
@@ -219,7 +218,7 @@ def task_create(request):
                 reminder_create_or_update(request.user, reminder, timezone, task.id)
             return redirect('todo_list:tasks')
         else:
-            messages.error(request,'Please fill all the input fields')
+            messages.error(request,'Please Fill all the Input Fields')
             return render(request, 'todo_list_app/task_create.html', {'form': form, 'categories': categories})
     else:
         form = TaskForm()
@@ -231,7 +230,7 @@ def task_update(request, task_id):
     try:
         task = get_object_or_404(Task, id=task_id)
     except ObjectDoesNotExist:
-        messages.error(request, 'No such task')
+        messages.error(request, 'No Task Found!')
         return redirect('todo_list:tasks')
     try:
         reminder = Reminder.objects.get(task=task)
@@ -253,7 +252,7 @@ def task_update(request, task_id):
                 reminder_create_or_update(request.user, reminder, timezone, task.id)
             return redirect('todo_list:tasks')
         else:
-            messages.error(request,'Please fill all the input fields')
+            messages.error(request,'Please Fill all the Input Fields')
             return render(request,
                           'todo_list_app/task_update.html',
                           {'task':
