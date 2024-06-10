@@ -42,6 +42,7 @@ INSTALLED_APPS = [
     'django_celery_results',
     'todo_list_app',
     'django_celery_beat',
+    'rest_framework_simplejwt.token_blacklist',
 ]
 
 # CELERY SETTINGS

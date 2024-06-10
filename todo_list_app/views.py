@@ -5,16 +5,17 @@ from django.db.models import Q
 from django.contrib import messages
 from django.contrib.auth import authenticate, logout
 from django.contrib.auth.decorators import login_required
-from .forms import LoginForm, TaskForm, CategoryForm
+from .forms import TaskForm, CategoryForm
 from todo_list_app.utils import reminder_create_or_update, send_code_to_user, verify_otp_code
 from django.utils.http import urlsafe_base64_encode, urlsafe_base64_decode
 from django.utils.encoding import smart_bytes, force_str
 from todo_list_app.models import User
 from rest_framework.generics import GenericAPIView
-from todo_list_app.serializers import UserRegisterSerializer, UserLoginSerializer
+from todo_list_app.serializers import UserRegisterSerializer, UserLoginSerializer, LogoutSerializer
 from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.exceptions import AuthenticationFailed
+from rest_framework.permissions import IsAuthenticated
 
 
 class RegisterUserView(GenericAPIView):
@@ -93,10 +94,15 @@ class LoginUserView(GenericAPIView):
         }, status=status.HTTP_200_OK)
 
 
-def logout_user(request):
-    logout(request)
-    messages.success(request, 'You have been Logged Out.')
-    return redirect('index')
+class LogoutUserView(GenericAPIView):
+    serializer_class = LogoutSerializer
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        serializers = self.serializer_class(data=request.data)
+        serializers.is_valid(raise_exception=True)
+        serializers.save()
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 def index(request):
