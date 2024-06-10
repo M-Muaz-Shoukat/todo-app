@@ -27,3 +27,15 @@ class UserRegisterSerializer(serializers.ModelSerializer):
 
         return user
 
+
+class UserLoginSerializer(serializers.ModelSerializer):
+    email = serializers.EmailField(max_length=255, min_length=6)
+    password = serializers.CharField(max_length=68,min_length=6,write_only=True)
+
+    class Meta:
+        model = User
+        fields = ['email', 'password']
+
+
+
+

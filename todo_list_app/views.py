@@ -1,9 +1,9 @@
 from django.core.exceptions import ObjectDoesNotExist
 from django.shortcuts import render, redirect, get_object_or_404
-from todo_list_app.models import Category, Task, Reminder
+from todo_list_app.models import Category, Task, Reminder, User
 from django.db.models import Q
 from django.contrib import messages
-from django.contrib.auth import authenticate, login, logout
+from django.contrib.auth import authenticate, logout
 from django.contrib.auth.decorators import login_required
 from .forms import LoginForm, TaskForm, CategoryForm
 from todo_list_app.utils import reminder_create_or_update, send_code_to_user, verify_otp_code
@@ -11,15 +11,10 @@ from django.utils.http import urlsafe_base64_encode, urlsafe_base64_decode
 from django.utils.encoding import smart_bytes, force_str
 from todo_list_app.models import User
 from rest_framework.generics import GenericAPIView
-from todo_list_app.serializers import UserRegisterSerializer
+from todo_list_app.serializers import UserRegisterSerializer, UserLoginSerializer
 from rest_framework.response import Response
 from rest_framework import status
-from django.urls import reverse
-from django.utils.safestring import mark_safe
-
-
-class LoginError(Exception):
-    pass
+from rest_framework.exceptions import AuthenticationFailed
 
 
 class RegisterUserView(GenericAPIView):
@@ -69,31 +64,33 @@ class VerifyUserEmailView(GenericAPIView):
             return Response({'message': str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
 
-def login_user(request):
-    if request.method == 'POST':
-        try:
-            email = request.POST['email']
-            password = request.POST['password']
-            user = authenticate(request, email=email, password=password)
-            if user is None:
-                raise LoginError('Invalid username or password')
-            if not user.is_verified:
-                send_code_to_user(user.email, user.id)
-                user_id = urlsafe_base64_encode(smart_bytes(user.id))
-                verify_url = reverse('verify-email', args=[user_id])
-                link = f"<a href='{verify_url}'>verify now</a>"
-                message = mark_safe(f"Verify your email first. Click here to {link}")
-                messages.error(request, message)
-                return redirect('login')
-            login(request, user)
-            messages.success(request, 'Logged In Successfully.')
-            return redirect('index')
-        except LoginError as e:
-            messages.error(request, str(e))
-            return redirect('login')
-    else:
-        form = LoginForm()
-        return render(request, 'auth/login.html', {'form': form})
+class LoginUserView(GenericAPIView):
+    serializer_class = UserLoginSerializer
+
+    def post(self, request):
+        email = request.data.get('email')
+        password = request.data.get('password')
+        serializer = self.serializer_class(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        user = authenticate(request, email=email, password=password)
+        if not user:
+            raise AuthenticationFailed('Invalid credentials try again!')
+        user_token = user.tokens()
+        if not user.is_verified:
+            send_code_to_user(user.email, user.id)
+            user_id = urlsafe_base64_encode(smart_bytes(user.id))
+            return Response({
+                'email': user.email,
+                'full_name': user.get_full_name,
+                'user_id': user_id,
+                'message': 'Email is not verified! An email has been sent to your Email Address Verify it.'
+            }, status=status.HTTP_208_ALREADY_REPORTED)
+        return Response({
+            'email': serializer.data['email'],
+            'full_name': user.get_full_name,
+            'access_token': str(user_token.get('access')),
+            'refresh_token': str(user_token.get('refresh')),
+        }, status=status.HTTP_200_OK)
 
 
 def logout_user(request):
