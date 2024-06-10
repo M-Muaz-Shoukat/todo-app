@@ -10,10 +10,14 @@ from django.utils.http import urlsafe_base64_decode, urlsafe_base64_encode
 from django.utils.encoding import smart_str, smart_bytes, force_str
 from todo_list_app.models import User
 from rest_framework.generics import GenericAPIView
-from todo_list_app.serializers import UserRegisterSerializer, UserLoginSerializer, LogoutSerializer
+from todo_list_app.serializers import UserRegisterSerializer, UserLoginSerializer, LogoutSerializer, CategorySerializer
 from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
+from rest_framework import viewsets
+from rest_framework import permissions
+from django.contrib.auth import authenticate
+from rest_framework.exceptions import AuthenticationFailed
 
 
 class RegisterUserView(GenericAPIView):
@@ -62,9 +66,14 @@ class LoginUserView(GenericAPIView):
     serializer_class = UserLoginSerializer
 
     def post(self, request):
-        serializer = self.serializer_class(data=request.data,context={'request': request})
+        email = request.data.get('email')
+        password = request.data.get('password')
+        serializer = self.serializer_class(data=request.data)
         serializer.is_valid(raise_exception=True)
-        user = User.objects.get(email=serializer.data['email'])
+        user = authenticate(request, email=email, password=password)
+        if not user:
+            raise AuthenticationFailed('Invalid credentials try again!')
+        user_token = user.tokens()
         if not user.is_verified:
             send_code_to_user(user.email, user.id)
             user_id = urlsafe_base64_encode(smart_bytes(user.id))
@@ -74,7 +83,12 @@ class LoginUserView(GenericAPIView):
                 'user_id': user_id,
                 'message': 'Email is not verified! An email has been sent to your Email Address Verify it.'
             }, status=status.HTTP_208_ALREADY_REPORTED)
-        return Response(serializer.data, status=status.HTTP_200_OK)
+        return Response({
+            'email': serializer.data['email'],
+            'full_name': user.get_full_name,
+            'access_token': str(user_token.get('access')),
+            'refresh_token': str(user_token.get('refresh')),
+        }, status=status.HTTP_200_OK)
 
 
 class LogoutUserView(GenericAPIView):
@@ -90,6 +104,39 @@ class LogoutUserView(GenericAPIView):
 
 def index(request):
     return render(request, 'todo_list_app/index.html')
+
+
+class IsOwner(permissions.BasePermission):
+
+    def has_object_permission(self, request, view, obj):
+
+        return obj.user == request.user
+
+
+class CategoryViewSet(viewsets.ModelViewSet):
+    serializer_class = CategorySerializer
+    permission_classes = [IsAuthenticated, IsOwner]
+
+    def get_queryset(self):
+        query = self.request.query_params.get('q', '')
+        return Category.objects.filter(name__icontains=query, user=self.request.user)
+
+    def perform_create(self, serializer):
+        serializer.save(user=self.request.user)
+
+
+@login_required
+def create_category(request):
+    if request.method == 'POST':
+        form = CategoryForm(request.POST)
+        if form.is_valid():
+            category = form.save(commit=False)
+            category.user_id = request.user.id
+            category.save()
+            return redirect('todo_list:all_categories')
+    else:
+        form = CategoryForm()
+        return render(request, 'todo_list_app/category_create.html', {'form': form})
 
 
 @login_required
@@ -126,20 +173,6 @@ def update_category(request, category_id):
         return redirect('todo_list:all_categories')
     else:
         return render(request, 'todo_list_app/category_update.html', {'category': category})
-
-
-@login_required
-def create_category(request):
-    if request.method == 'POST':
-        form = CategoryForm(request.POST)
-        if form.is_valid():
-            category = form.save(commit=False)
-            category.user_id = request.user.id
-            category.save()
-            return redirect('todo_list:all_categories')
-    else:
-        form = CategoryForm()
-        return render(request, 'todo_list_app/category_create.html', {'form': form})
 
 
 @login_required
