@@ -1,10 +1,10 @@
 from django.core.exceptions import ObjectDoesNotExist
 from django.shortcuts import render, redirect, get_object_or_404
-from todo_list_app.models import Category, Task, Reminder, User
+from todo_list_app.models import Category, Task, Reminder
 from django.db.models import Q
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
-from .forms import TaskForm, CategoryForm
+from .forms import TaskForm
 from todo_list_app.utils import reminder_create_or_update, send_code_to_user, verify_otp_code
 from django.utils.http import urlsafe_base64_encode, urlsafe_base64_decode
 from django.utils.encoding import smart_bytes, force_str
