@@ -1,16 +1,17 @@
 from django.core.exceptions import ObjectDoesNotExist
 from django.shortcuts import render, redirect, get_object_or_404
-from todo_list_app.models import Category, Task, Reminder, User
+from todo_list_app.models import Category, Task, Reminder
 from django.db.models import Q
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from .forms import TaskForm, CategoryForm
 from todo_list_app.utils import reminder_create_or_update, send_code_to_user, verify_otp_code
 from django.utils.http import urlsafe_base64_decode, urlsafe_base64_encode
-from django.utils.encoding import smart_str, smart_bytes, force_str
+from django.utils.encoding import smart_bytes, force_str
 from todo_list_app.models import User
 from rest_framework.generics import GenericAPIView
-from todo_list_app.serializers import UserRegisterSerializer, UserLoginSerializer, LogoutSerializer, CategorySerializer
+from todo_list_app.serializers import (UserRegisterSerializer, UserLoginSerializer, LogoutSerializer,
+                                       CategorySerializer, ReminderSerializer, TaskSerializer)
 from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
@@ -110,7 +111,7 @@ class IsOwner(permissions.BasePermission):
 
     def has_object_permission(self, request, view, obj):
 
-        return obj.user == request.user
+        return obj.category.user == request.user
 
 
 class CategoryViewSet(viewsets.ModelViewSet):
@@ -173,6 +174,33 @@ def update_category(request, category_id):
         return redirect('todo_list:all_categories')
     else:
         return render(request, 'todo_list_app/category_update.html', {'category': category})
+
+
+class TaskViewSet(viewsets.ModelViewSet):
+    serializer_class = TaskSerializer
+    permission_classes = [IsAuthenticated, IsOwner]
+
+    def get_queryset(self):
+        query = self.request.query_params.get('q')
+        task_list = Task.objects.filter(category__user=self.request.user)
+
+        if query:
+            task_list = task_list.filter(
+                Q(title__icontains=query) |
+                Q(description__icontains=query) |
+                Q(category__name__icontains=query)
+            )
+        return task_list
+
+    def list(self, request, *args, **kwargs):
+        query_set = self.get_queryset()
+        serializer = self.serializer_class(query_set, many=True)
+        for data in serializer.data:
+            task_id = data['id']
+            reminder = Reminder.objects.get(task_id=task_id)
+            if reminder:
+                data['reminder'] = ReminderSerializer(reminder).data
+        return Response({'data': serializer.data}, status=status.HTTP_200_OK)
 
 
 @login_required

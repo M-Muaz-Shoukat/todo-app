@@ -1,7 +1,5 @@
 from rest_framework import serializers
-from todo_list_app.models import User, Category
-from rest_framework.exceptions import AuthenticationFailed
-from django.contrib.auth import authenticate
+from todo_list_app.models import User, Category, Reminder, Task
 from rest_framework_simplejwt.tokens import RefreshToken
 from tokenize import TokenError
 
@@ -65,3 +63,73 @@ class CategorySerializer(serializers.ModelSerializer):
         model = Category
         fields = ['id', 'name', 'user']
         read_only_fields = ['user']
+
+
+class ReminderSerializer(serializers.ModelSerializer):
+
+    class Meta:
+        model = Reminder
+        fields = ['remind_at', 'is_sent']
+
+
+class TaskSerializer(serializers.ModelSerializer):
+    reminder = ReminderSerializer(required=False, default=None)
+    id = serializers.IntegerField(read_only=True)
+
+    class Meta:
+        model = Task
+        fields = ['id', 'title', 'description', 'due_date', 'completed', 'category', 'reminder']
+
+    def create(self, validated_data):
+        request = self.context.get('request')
+        task = Task.objects.create(
+            title=validated_data['title'],
+            description=validated_data['description'],
+            due_date=validated_data['due_date'],
+            completed=validated_data['completed'],
+            category=validated_data['category']
+        )
+        reminder = None
+        if validated_data.get('reminder') and validated_data['reminder'].get('remind_at'):
+            reminder = Reminder.objects.create(
+                user=request.user,
+                task=task,
+                remind_at=validated_data['reminder'].get('remind_at'),
+            )
+        return {
+            'title': task.title,
+            'description': task.description,
+            'due_date': task.due_date,
+            'completed': task.completed,
+            'category': task.category,
+            'reminder': reminder
+        }
+
+    def update(self, instance, validated_data):
+        request = self.context.get('request')
+        instance.title = validated_data.get('title', instance.title)
+        instance.description = validated_data.get('description', instance.description)
+        instance.due_date = validated_data.get('due_date', instance.due_date)
+        instance.completed = validated_data.get('completed', instance.completed)
+        instance.category = validated_data.get('category', instance.category)
+        instance.save()
+        instance.reminder = Reminder.objects.get(task_id=instance.id)
+        reminder_data = validated_data.get('reminder')
+        if reminder_data and reminder_data.get('remind_at'):
+
+            if hasattr(instance, 'reminder') and instance.reminder is not None:
+
+                instance.reminder.remind_at = reminder_data.get('remind_at', instance.reminder.remind_at)
+                instance.reminder.save()
+            else:
+
+                Reminder.objects.create(
+                    user=request.user,
+                    task=instance,
+                    remind_at=reminder_data.get('remind_at')
+                )
+
+        return instance
+
+
+
