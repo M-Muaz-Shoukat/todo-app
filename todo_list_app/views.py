@@ -131,56 +131,6 @@ class CategoryViewSet(viewsets.ModelViewSet):
 
 
 @login_required
-def create_category(request):
-    if request.method == 'POST':
-        form = CategoryForm(request.POST)
-        if form.is_valid():
-            category = form.save(commit=False)
-            category.user_id = request.user.id
-            category.save()
-            return redirect('todo_list:all_categories')
-    else:
-        form = CategoryForm()
-        return render(request, 'todo_list_app/category_create.html', {'form': form})
-
-
-@login_required
-def all_categories(request):
-    query = request.GET.get('q')
-    category_list = Category.objects.filter(user=request.user, name__icontains=query if query else '')
-    return render(request, 'todo_list_app/all_categories.html', {'category_list': category_list, 'query': query})
-
-
-@login_required
-def delete_category(request, category_id):
-    try:
-        category = Category.objects.get(id=category_id, user=request.user)
-        if category is None:
-            raise ObjectDoesNotExist
-        category.delete()
-        return redirect('todo_list:all_categories')
-    except ObjectDoesNotExist:
-        messages.error(request, 'No Category Found!')
-        return redirect('todo_list:all_categories')
-
-
-@login_required
-def update_category(request, category_id):
-    try:
-        category = get_object_or_404(Category, id=category_id, user=request.user)
-    except ObjectDoesNotExist:
-        messages.error(request, 'No Category Found!')
-        return redirect('todo_list:all_categories')
-    if request.method == 'POST':
-        name = request.POST.get('name')
-        category.name = name
-        category.save()
-        return redirect('todo_list:all_categories')
-    else:
-        return render(request, 'todo_list_app/category_update.html', {'category': category})
-
-
-@login_required
 def tasks(request):
     query = request.GET.get('q')
     try:
