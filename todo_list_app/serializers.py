@@ -58,7 +58,6 @@ class LogoutSerializer(serializers.Serializer):
         except TokenError:
             return self.fail('bad_token')
 
-
 class CategorySerializer(serializers.ModelSerializer):
 
     class Meta:
