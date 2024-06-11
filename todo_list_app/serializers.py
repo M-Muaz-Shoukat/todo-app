@@ -1,5 +1,7 @@
 from rest_framework import serializers
-from todo_list_app.models import User
+from todo_list_app.models import User, Category
+from rest_framework.exceptions import AuthenticationFailed
+from django.contrib.auth import authenticate
 from rest_framework_simplejwt.tokens import RefreshToken
 from tokenize import TokenError
 
@@ -56,3 +58,10 @@ class LogoutSerializer(serializers.Serializer):
         except TokenError:
             return self.fail('bad_token')
 
+
+class CategorySerializer(serializers.ModelSerializer):
+
+    class Meta:
+        model = Category
+        fields = ['id', 'name', 'user']
+        read_only_fields = ['user']

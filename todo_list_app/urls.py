@@ -1,12 +1,14 @@
-from django.urls import path
+from django.urls import path, include
 from todo_list_app import views
+from rest_framework.routers import DefaultRouter
+
+router = DefaultRouter(trailing_slash=False)
+
+router.register(r'categories', views.CategoryViewSet, basename='category')
 
 app_name = 'todo_list'
 urlpatterns = [
-    path('categories', views.all_categories, name='all_categories'),
-    path('category/create', views.create_category, name='create_category'),
-    path('category/<int:category_id>/update', views.update_category, name='category_update'),
-    path('category/<int:category_id>/delete', views.delete_category, name='category_delete'),
+    path('', include(router.urls)),
     path('tasks', views.tasks, name='tasks'),
     path('tasks/create', views.task_create, name='task_create'),
     path('tasks/<int:task_id>/delete', views.task_delete, name='task_delete'),

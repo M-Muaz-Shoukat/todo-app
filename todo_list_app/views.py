@@ -1,21 +1,23 @@
 from django.core.exceptions import ObjectDoesNotExist
 from django.shortcuts import render, redirect, get_object_or_404
-from todo_list_app.models import Category, Task, Reminder, User
+from todo_list_app.models import Category, Task, Reminder
 from django.db.models import Q
 from django.contrib import messages
-from django.contrib.auth import authenticate, logout
 from django.contrib.auth.decorators import login_required
-from .forms import TaskForm, CategoryForm
+from .forms import TaskForm
 from todo_list_app.utils import reminder_create_or_update, send_code_to_user, verify_otp_code
 from django.utils.http import urlsafe_base64_encode, urlsafe_base64_decode
 from django.utils.encoding import smart_bytes, force_str
 from todo_list_app.models import User
 from rest_framework.generics import GenericAPIView
-from todo_list_app.serializers import UserRegisterSerializer, UserLoginSerializer, LogoutSerializer
+from todo_list_app.serializers import UserRegisterSerializer, UserLoginSerializer, LogoutSerializer, CategorySerializer
 from rest_framework.response import Response
 from rest_framework import status
-from rest_framework.exceptions import AuthenticationFailed
 from rest_framework.permissions import IsAuthenticated
+from rest_framework import viewsets
+from rest_framework import permissions
+from django.contrib.auth import authenticate
+from rest_framework.exceptions import AuthenticationFailed
 
 
 class RegisterUserView(GenericAPIView):
@@ -109,54 +111,23 @@ def index(request):
     return render(request, 'todo_list_app/index.html')
 
 
-@login_required
-def all_categories(request):
-    query = request.GET.get('q')
-    category_list = Category.objects.filter(user=request.user, name__icontains=query if query else '')
-    return render(request, 'todo_list_app/all_categories.html', {'category_list': category_list, 'query': query})
+class IsOwner(permissions.BasePermission):
+
+    def has_object_permission(self, request, view, obj):
+
+        return obj.user == request.user
 
 
-@login_required
-def delete_category(request, category_id):
-    try:
-        category = Category.objects.get(id=category_id, user=request.user)
-        if category is None:
-            raise ObjectDoesNotExist
-        category.delete()
-        return redirect('todo_list:all_categories')
-    except ObjectDoesNotExist:
-        messages.error(request, 'No Category Found!')
-        return redirect('todo_list:all_categories')
+class CategoryViewSet(viewsets.ModelViewSet):
+    serializer_class = CategorySerializer
+    permission_classes = [IsAuthenticated, IsOwner]
 
+    def get_queryset(self):
+        query = self.request.query_params.get('q', '')
+        return Category.objects.filter(name__icontains=query, user=self.request.user)
 
-@login_required
-def update_category(request, category_id):
-    try:
-        category = get_object_or_404(Category, id=category_id, user=request.user)
-    except ObjectDoesNotExist:
-        messages.error(request, 'No Category Found!')
-        return redirect('todo_list:all_categories')
-    if request.method == 'POST':
-        name = request.POST.get('name')
-        category.name = name
-        category.save()
-        return redirect('todo_list:all_categories')
-    else:
-        return render(request, 'todo_list_app/category_update.html', {'category': category})
-
-
-@login_required
-def create_category(request):
-    if request.method == 'POST':
-        form = CategoryForm(request.POST)
-        if form.is_valid():
-            category = form.save(commit=False)
-            category.user_id = request.user.id
-            category.save()
-            return redirect('todo_list:all_categories')
-    else:
-        form = CategoryForm()
-        return render(request, 'todo_list_app/category_create.html', {'form': form})
+    def perform_create(self, serializer):
+        serializer.save(user=self.request.user)
 
 
 @login_required
