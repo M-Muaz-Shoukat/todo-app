@@ -67,11 +67,11 @@ CELERY_BEAT_SCHEDULER = 'django_celery_beat.schedulers:DatabaseScheduler'
 CELERY_BEAT_SCHEDULE = {
     'check-reminders-every-minute': {
         'task': 'todo_list_app.tasks.check_and_send_reminders',
-        'schedule': crontab(minute='*/1'),
+        'schedule': crontab(minute='*/5'),
     },
     'flush_blacklisted_token_every_minute': {
         'task': 'todo_list_app.tasks.flush_blacklisted_tokens',
-        'schedule': 10.0
+        'schedule': crontab(day_of_month='1'),
     }
 }
 
@@ -142,8 +142,8 @@ REST_FRAMEWORK = {
 }
 
 SIMPLE_JWT = {
-    "ACCESS_TOKEN_LIFETIME": timedelta(days=30),
-    "REFRESH_TOKEN_LIFETIME": timedelta(minutes=15),
+    "ACCESS_TOKEN_LIFETIME": timedelta(hours=2),
+    "REFRESH_TOKEN_LIFETIME": timedelta(days=1),
     "AUTH_HEADER_TYPES": ("Bearer",),
 }
 
