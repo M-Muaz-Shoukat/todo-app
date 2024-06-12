@@ -1,16 +1,13 @@
 from django.core.exceptions import ObjectDoesNotExist
-from django.shortcuts import render, redirect, get_object_or_404
 from todo_list_app.models import Category, Task, Reminder
 from django.db.models import Q
-from django.contrib import messages
-from django.contrib.auth.decorators import login_required
-from .forms import TaskForm
-from todo_list_app.utils import reminder_create_or_update, send_code_to_user, verify_otp_code
-from django.utils.http import urlsafe_base64_encode, urlsafe_base64_decode
+from todo_list_app.utils import send_code_to_user, verify_otp_code
+from django.utils.http import urlsafe_base64_decode, urlsafe_base64_encode
 from django.utils.encoding import smart_bytes, force_str
 from todo_list_app.models import User
 from rest_framework.generics import GenericAPIView
-from todo_list_app.serializers import UserRegisterSerializer, UserLoginSerializer, LogoutSerializer, CategorySerializer
+from todo_list_app.serializers import (UserRegisterSerializer, UserLoginSerializer, LogoutSerializer,
+                                       CategorySerializer, ReminderSerializer, TaskSerializer)
 from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
@@ -107,20 +104,23 @@ class LogoutUserView(GenericAPIView):
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
-def index(request):
-    return render(request, 'todo_list_app/index.html')
-
-
-class IsOwner(permissions.BasePermission):
+class IsOwnerCategoryPermission(permissions.BasePermission):
 
     def has_object_permission(self, request, view, obj):
 
         return obj.user == request.user
 
 
+class IsOwnerTaskPermission(permissions.BasePermission):
+
+    def has_object_permission(self, request, view, obj):
+
+        return obj.category.user == request.user
+
+
 class CategoryViewSet(viewsets.ModelViewSet):
     serializer_class = CategorySerializer
-    permission_classes = [IsAuthenticated, IsOwner]
+    permission_classes = [IsAuthenticated, IsOwnerCategoryPermission]
 
     def get_queryset(self):
         query = self.request.query_params.get('q', '')
@@ -130,11 +130,13 @@ class CategoryViewSet(viewsets.ModelViewSet):
         serializer.save(user=self.request.user)
 
 
-@login_required
-def tasks(request):
-    query = request.GET.get('q')
-    try:
-        task_list = Task.objects.filter(category__user=request.user)
+class TaskViewSet(viewsets.ModelViewSet):
+    serializer_class = TaskSerializer
+    permission_classes = [IsAuthenticated, IsOwnerTaskPermission]
+
+    def get_queryset(self):
+        query = self.request.query_params.get('q')
+        task_list = Task.objects.filter(category__user=self.request.user)
 
         if query:
             task_list = task_list.filter(
@@ -142,98 +144,15 @@ def tasks(request):
                 Q(description__icontains=query) |
                 Q(category__name__icontains=query)
             )
+        return task_list
 
-        tasks_with_reminders = []
-        for task in task_list:
-            try:
-                task_reminders = Reminder.objects.filter(task=task)
-                tasks_with_reminders.append({
-                    'task': task,
-                    'reminder': task_reminders[0] if task_reminders else None
-                })
-            except Reminder.DoesNotExist:
-                messages.error(request, f"Reminder does not exist for task {task.id}.")
+    def list(self, request, *args, **kwargs):
+        query_set = self.get_queryset()
+        serializer = self.serializer_class(query_set, many=True)
+        for data in serializer.data:
+            task_id = data['id']
+            reminder = Reminder.objects.get(task_id=task_id)
+            if reminder:
+                data['reminder'] = ReminderSerializer(reminder).data
+        return Response({'data': serializer.data}, status=status.HTTP_200_OK)
 
-        return render(request, 'todo_list_app/tasks.html', {
-            'tasks_with_reminders': tasks_with_reminders,
-            'query': query
-        })
-
-    except Task.DoesNotExist:
-        messages.error(request, "No Tasks Found for the current User.")
-        return render(request, 'todo_list_app/tasks.html', {
-            'tasks_with_reminders': [],
-            'query': query
-        })
-
-
-@login_required
-def task_delete(request, task_id):
-    try:
-        task = get_object_or_404(Task, id=task_id, category__user=request.user)
-        task.delete()
-        return redirect('todo_list:tasks')
-    except ObjectDoesNotExist:
-        messages.error(request, 'No Task Found!')
-        return redirect('todo_list:tasks')
-
-
-@login_required
-def task_create(request):
-    categories = Category.objects.filter(user=request.user)
-    if request.method == 'POST':
-        form = TaskForm(request.POST)
-        if form.is_valid():
-            remind_at = request.POST.get('remind_at')
-            timezone = request.POST.get('timezone')
-            task = form.save()
-            if remind_at != '':
-                reminder = Reminder(remind_at=remind_at)
-                reminder_create_or_update(request.user, reminder, timezone, task.id)
-            return redirect('todo_list:tasks')
-        else:
-            messages.error(request,'Please Fill all the Input Fields')
-            return render(request, 'todo_list_app/task_create.html', {'form': form, 'categories': categories})
-    else:
-        form = TaskForm()
-        return render(request, 'todo_list_app/task_create.html', {'form': form, 'categories': categories})
-
-
-@login_required
-def task_update(request, task_id):
-    try:
-        task = get_object_or_404(Task, id=task_id)
-    except ObjectDoesNotExist:
-        messages.error(request, 'No Task Found!')
-        return redirect('todo_list:tasks')
-    try:
-        reminder = Reminder.objects.get(task=task)
-    except Reminder.DoesNotExist:
-        reminder = None
-
-    categories = Category.objects.filter(user=request.user)
-    if request.method == 'POST':
-        form = TaskForm(request.POST, instance=task)
-        if form.is_valid():
-            remind_at = request.POST.get('remind_at')
-            timezone = request.POST.get('timezone')
-            task = form.save()
-            if remind_at != '':
-                if reminder is None:
-                    reminder = Reminder(remind_at=remind_at)
-                else:
-                    reminder.remind_at = remind_at
-                reminder_create_or_update(request.user, reminder, timezone, task.id)
-            return redirect('todo_list:tasks')
-        else:
-            messages.error(request,'Please Fill all the Input Fields')
-            return render(request,
-                          'todo_list_app/task_update.html',
-                          {'task':
-                               task, 'categories': categories, 'reminder': reminder, 'form': form})
-    else:
-        form = TaskForm()
-        return render(request,
-                      'todo_list_app/task_update.html',
-                      {'task':
-                           task, 'categories': categories, 'reminder': reminder, 'form': form})
