@@ -69,7 +69,7 @@ CELERY_BEAT_SCHEDULE = {
         'task': 'todo_list_app.tasks.check_and_send_reminders',
         'schedule': crontab(minute='*/1'),
     },
-    'flush_blacklisted_token_every_minute': {
+    'flush_blacklisted_token_every_month': {
         'task': 'todo_list_app.tasks.flush_blacklisted_tokens',
         'schedule': crontab(day_of_month='1', minute='0', hour='0')
     }
