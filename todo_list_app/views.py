@@ -12,7 +12,7 @@ from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework import viewsets
-from rest_framework import permissions
+from todo_list_app.permissions import IsOwner
 from django.contrib.auth import authenticate
 from rest_framework.exceptions import AuthenticationFailed
 
@@ -104,23 +104,11 @@ class LogoutUserView(GenericAPIView):
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
-class IsOwnerCategoryPermission(permissions.BasePermission):
-
-    def has_object_permission(self, request, view, obj):
-
-        return obj.user == request.user
-
-
-class IsOwnerTaskPermission(permissions.BasePermission):
-
-    def has_object_permission(self, request, view, obj):
-
-        return obj.category.user == request.user
-
-
 class CategoryViewSet(viewsets.ModelViewSet):
     serializer_class = CategorySerializer
-    permission_classes = [IsAuthenticated, IsOwnerCategoryPermission]
+
+    def get_permissions(self):
+        return [IsAuthenticated(), IsOwner(user_path='user')]
 
     def get_queryset(self):
         query = self.request.query_params.get('q', '')
@@ -132,7 +120,9 @@ class CategoryViewSet(viewsets.ModelViewSet):
 
 class TaskViewSet(viewsets.ModelViewSet):
     serializer_class = TaskSerializer
-    permission_classes = [IsAuthenticated, IsOwnerTaskPermission]
+
+    def get_permissions(self):
+        return [IsAuthenticated(), IsOwner(user_path='category.user')]
 
     def get_queryset(self):
         query = self.request.query_params.get('q')
