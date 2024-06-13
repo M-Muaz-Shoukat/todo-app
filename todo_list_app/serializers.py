@@ -74,7 +74,7 @@ class ReminderSerializer(serializers.ModelSerializer):
 
 class TaskSerializer(serializers.ModelSerializer):
     reminder = ReminderSerializer(required=False, default=None)
-    id = serializers.IntegerField(read_only=True)
+    id = serializers.IntegerField(required=False)
 
     class Meta:
         model = Task
@@ -97,6 +97,7 @@ class TaskSerializer(serializers.ModelSerializer):
                 remind_at=validated_data['reminder'].get('remind_at'),
             )
         return {
+            'id': task.id,
             'title': task.title,
             'description': task.description,
             'due_date': task.due_date,
