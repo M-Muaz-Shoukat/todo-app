@@ -71,7 +71,7 @@ CELERY_BEAT_SCHEDULE = {
     },
     'flush_blacklisted_token_every_minute': {
         'task': 'todo_list_app.tasks.flush_blacklisted_tokens',
-        'schedule': 10.0
+        'schedule': crontab(day_of_month='1', minute='0', hour='0')
     }
 }
 
