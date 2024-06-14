@@ -9,5 +9,6 @@ router.register(r'tasks', views.TaskViewSet, basename='task')
 
 app_name = 'todo_list'
 urlpatterns = [
-    path('', include(router.urls)),
+    path('', include(router.urls))
 ]
+

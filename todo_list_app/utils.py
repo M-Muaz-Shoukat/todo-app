@@ -9,8 +9,6 @@ from django.conf import settings
 from todo_list import settings
 from django.core.mail import EmailMessage
 from celery import shared_task
-from django.utils.http import urlsafe_base64_encode, urlsafe_base64_decode
-from django.utils.encoding import smart_str, smart_bytes, force_str
 
 
 def send_reminder_email(reminder):

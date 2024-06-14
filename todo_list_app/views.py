@@ -14,7 +14,7 @@ from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework import viewsets
-from rest_framework import permissions
+from todo_list_app.permissions import IsOwner
 from django.contrib.auth import authenticate
 from rest_framework.exceptions import AuthenticationFailed
 
@@ -30,7 +30,7 @@ class RegisterUserView(GenericAPIView):
             user = User.objects.get(email=user_data['email'])
             send_code_to_user(user_data['email'], user.id)
             user_id = urlsafe_base64_encode(smart_bytes(user.id))
-            return Response({'data': user_data, 'user_id': user_id, 'message': f"hi thanks for signing up passcode"},
+            return Response({'data': user_data, 'user_id': user_id, 'message': f"Account Registered Successfully!"},
                             status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
@@ -40,25 +40,30 @@ class VerifyUserEmailView(GenericAPIView):
     def post(self, request):
         otp_code = request.data.get('code')
         user_id = request.data.get('user_id')
-        user_id = int(force_str(urlsafe_base64_decode(user_id)))
+        if not user_id or not isinstance(user_id, str):
+            return Response({'message': 'Invalid user_id format'}, status=status.HTTP_400_BAD_REQUEST)
+
         try:
+            user_id = int(force_str(urlsafe_base64_decode(user_id)))
             if not verify_otp_code(otp_code, user_id):
                 return Response({
-                    'message': 'code is Invalid'
+                    'message': 'Code is Invalid'
                 }, status=status.HTTP_404_NOT_FOUND)
             user = User.objects.get(id=user_id)
             if not user.is_verified:
                 user.is_verified = True
                 user.save()
                 return Response({
-                    'message': 'account email verified successfully!'
+                    'message': 'Account Email Verified Successfully!'
                 }, status=status.HTTP_200_OK)
 
             return Response({
-                'message': 'code is invalid user already verified!'
+                'message': 'User Already Verified!'
             }, status=status.HTTP_204_NO_CONTENT)
         except ObjectDoesNotExist:
-            return Response({'message': 'passcode not provided'}, status=status.HTTP_404_NOT_FOUND)
+            return Response({'message': 'Code not Provided'}, status=status.HTTP_404_NOT_FOUND)
+        except Exception as e:
+            return Response({'message': str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
 
 class LoginUserView(GenericAPIView):
@@ -101,20 +106,11 @@ class LogoutUserView(GenericAPIView):
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
-def index(request):
-    return render(request, 'todo_list_app/index.html')
-
-
-class IsOwner(permissions.BasePermission):
-
-    def has_object_permission(self, request, view, obj):
-
-        return obj.category.user == request.user
-
-
 class CategoryViewSet(viewsets.ModelViewSet):
     serializer_class = CategorySerializer
-    permission_classes = [IsAuthenticated, IsOwner]
+
+    def get_permissions(self):
+        return [IsAuthenticated(), IsOwner(user_path='user')]
 
     def get_queryset(self):
         query = self.request.query_params.get('q', '')
@@ -126,8 +122,10 @@ class CategoryViewSet(viewsets.ModelViewSet):
 
 class TaskViewSet(viewsets.ModelViewSet):
     serializer_class = TaskSerializer
-    permission_classes = [IsAuthenticated, IsOwner]
     pagination_class = CustomPagination
+
+    def get_permissions(self):
+        return [IsAuthenticated(), IsOwner(user_path='category.user')]
 
     def get_queryset(self):
         query = self.request.query_params.get('q')
