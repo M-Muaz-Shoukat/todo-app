@@ -69,6 +69,10 @@ CELERY_BEAT_SCHEDULE = {
         'task': 'todo_list_app.tasks.check_and_send_reminders',
         'schedule': crontab(minute='*/1'),
     },
+    'flush_blacklisted_token_every_month': {
+        'task': 'todo_list_app.tasks.flush_blacklisted_tokens',
+        'schedule': crontab(day_of_month='1', minute='0', hour='0')
+    }
 }
 
 
@@ -138,7 +142,7 @@ REST_FRAMEWORK = {
 }
 
 SIMPLE_JWT = {
-    "ACCESS_TOKEN_LIFETIME": timedelta(hours=8),
+    "ACCESS_TOKEN_LIFETIME": timedelta(hours=2),
     "REFRESH_TOKEN_LIFETIME": timedelta(days=1),
     "AUTH_HEADER_TYPES": ("Bearer",),
 }
