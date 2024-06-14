@@ -1,5 +1,4 @@
 from django.core.exceptions import ObjectDoesNotExist
-from django.shortcuts import render
 from todo_list_app.paginations import CustomPagination
 from todo_list_app.models import Category, Task, Reminder
 from django.db.models import Q
@@ -108,6 +107,7 @@ class LogoutUserView(GenericAPIView):
 
 class CategoryViewSet(viewsets.ModelViewSet):
     serializer_class = CategorySerializer
+    pagination_class = CustomPagination
 
     def get_permissions(self):
         return [IsAuthenticated(), IsOwner(user_path='user')]
