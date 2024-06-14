@@ -1,4 +1,5 @@
 from django.core.exceptions import ObjectDoesNotExist
+from todo_list_app.paginations import CustomPagination
 from todo_list_app.models import Category, Task, Reminder
 from django.db.models import Q
 from todo_list_app.utils import send_code_to_user, verify_otp_code
@@ -106,6 +107,7 @@ class LogoutUserView(GenericAPIView):
 
 class CategoryViewSet(viewsets.ModelViewSet):
     serializer_class = CategorySerializer
+    pagination_class = CustomPagination
 
     def get_permissions(self):
         return [IsAuthenticated(), IsOwner(user_path='user')]
@@ -120,6 +122,7 @@ class CategoryViewSet(viewsets.ModelViewSet):
 
 class TaskViewSet(viewsets.ModelViewSet):
     serializer_class = TaskSerializer
+    pagination_class = CustomPagination
 
     def get_permissions(self):
         return [IsAuthenticated(), IsOwner(user_path='category.user')]
@@ -137,8 +140,15 @@ class TaskViewSet(viewsets.ModelViewSet):
         return task_list
 
     def list(self, request, *args, **kwargs):
+        paginator = self.pagination_class()
         query_set = self.get_queryset()
-        serializer = self.serializer_class(query_set, many=True)
+        page = paginator.paginate_queryset(queryset=query_set, request=request)
+        if page is not None:
+            serializer = self.serializer_class(page, many=True)
+            return paginator.get_paginated_response(serializer.data)
+        else:
+            serializer = self.serializer_class(query_set, many=True)
+
         for data in serializer.data:
             task_id = data['id']
             reminder = Reminder.objects.get(task_id=task_id)
