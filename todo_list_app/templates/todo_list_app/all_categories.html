@@ -1,0 +1,32 @@
+<h3><a href="{% url 'index' %}"><strong><-- Back to Dashboard</strong></a></h3>
+<form method="get" action="{% url 'todo_list:all_categories' %}">
+    <input type="text" name="q" placeholder="Search..." value="{{ query|default:'' }}">
+    <button type="submit">Search</button>
+</form>
+<h2>Todo Categories</h2>
+<table>
+  <thead>
+    <tr>
+      <th>Category Name</th>
+      <th>Update</th>
+      <th>Delete</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% if category_list %}
+      {% for category in category_list %}
+      <tr>
+        <td>{{ category.name }}</td>
+        <td><a href="{% url 'todo_list:category_update' category.id %}">Update</a></td>
+        <td><a href="{% url 'todo_list:category_delete' category.id %}">Delete</a></td>
+      </tr>
+      {% endfor %}
+    {% else %}
+      <tr>
+        <td colspan="3">No categories available.</td>
+      </tr>
+    {% endif %}
+  </tbody>
+</table>
+
+<a href="{% url 'todo_list:create_category' %}">Add Category</a>

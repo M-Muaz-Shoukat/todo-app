@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Register</title>
+    <style>
+        .errorlist {
+            color: red;
+        }
+    </style>
+</head>
+<body>
+<h2>Register</h2>
+
+{% if form.errors %}
+    <p>There was an error with your form...</p>
+{% endif %}
+
+<form action="{% url 'register' %}" method="POST">
+    {% csrf_token %}
+    {{ form.as_p }}
+
+    <button type="submit">Register</button>
+</form>
+
+</body>
+</html>
