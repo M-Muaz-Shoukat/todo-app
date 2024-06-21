@@ -17,6 +17,8 @@ class TestTaskAPI(TestCase):
         refresh = RefreshToken.for_user(self.user)
         access_token = str(refresh.access_token)
         self.client.credentials(HTTP_AUTHORIZATION='Bearer ' + access_token)
+
+    def _create_category_and_task(self):
         category = self.client.post('/todo/categories', {"name": "Work"}, format='json')
         self.category = json.loads(category.content)
         response = self.client.post('/todo/tasks', {"title": "title here is now!",
@@ -27,10 +29,12 @@ class TestTaskAPI(TestCase):
         self.object = content_list
 
     def test_tasks_get_endpoint(self):
+        self._create_category_and_task()
         response = self.client.get('/todo/tasks')
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
     def test_task_post_endpoint(self):
+        self._create_category_and_task()
         response = self.client.post('/todo/tasks', {"title": "title here is now!",
                                                     "description": "description", "due_date": "2024-06-20",
                                                     "completed": False, "category": self.category['id'],
@@ -38,16 +42,19 @@ class TestTaskAPI(TestCase):
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
 
     def test_task_patch_endpoint(self):
+        self._create_category_and_task()
         response = self.client.patch(f'/todo/tasks/{self.object['id']}', {"title": "No title here"},format='json')
         content = json.loads(response.content)
         self.assertEqual(content['title'], "No title here")
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
     def test_task_delete_endpoint(self):
+        self._create_category_and_task()
         response = self.client.delete(f'/todo/tasks/{self.object['id']}')
         self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
 
     def test_task_retrieve_endpoint(self):
+        self._create_category_and_task()
         response = self.client.get(f'/todo/tasks/{self.object['id']}')
         content = json.loads(response.content)
         self.assertEqual(content['title'], "title here is now!")
