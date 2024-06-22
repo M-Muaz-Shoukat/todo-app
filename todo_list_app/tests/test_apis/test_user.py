@@ -18,6 +18,7 @@ class TestAuthAPI(TestCase):
             "password": "admin123456789",
             "password2": "admin123456789"
         }
+        self.otp_code = '123456'
 
     def _register_user(self):
         response = self.client.post('/auth/register', self.user_data, format='json')
@@ -25,7 +26,7 @@ class TestAuthAPI(TestCase):
         return user_data
 
     def _verify_user(self, user_data):
-        response = self.client.post('/auth/verify-email', {'code': '123456',
+        response = self.client.post('/auth/verify-email', {'code': self.otp_code,
                                                            'user_id': f'{user_data["user_id"]}'},
                                     format='json')
         return response
@@ -36,7 +37,7 @@ class TestAuthAPI(TestCase):
 
     @patch('todo_list_app.utils.generate_otp')
     def test_auth_verify_email_endpoint(self, mock_generate_otp):
-        mock_generate_otp.return_value = '123456'
+        mock_generate_otp.return_value = self.otp_code
         user_data = self._register_user()
         response = self._verify_user(user_data)
 
@@ -44,7 +45,7 @@ class TestAuthAPI(TestCase):
 
     @patch('todo_list_app.utils.generate_otp')
     def test_auth_login_endpoint(self, mock_generate_otp):
-        mock_generate_otp.return_value = '123456'
+        mock_generate_otp.return_value = self.otp_code
         user_data = self._register_user()
         self._verify_user(user_data)
         response = self.client.post('/auth/login', {"email": self.user_data['email'],
@@ -53,8 +54,8 @@ class TestAuthAPI(TestCase):
         self.assertEqual(user['email'], self.user_data['email'])
 
     @patch('todo_list_app.utils.generate_otp')
-    def test_auth_logout_endpoint(self,mock_generate_otp):
-        mock_generate_otp.return_value = '123456'
+    def test_auth_logout_endpoint(self, mock_generate_otp):
+        mock_generate_otp.return_value = self.otp_code
         user_data = self._register_user()
         self._verify_user(user_data)
         response = self.client.post('/auth/login', {"email": self.user_data['email'],
