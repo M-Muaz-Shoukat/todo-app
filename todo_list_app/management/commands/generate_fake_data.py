@@ -35,7 +35,7 @@ class Command(BaseCommand):
 
             user = User.objects.get(email=data['email'])
             for j in range(category_count):
-                category = Category.objects.create(user=user, name=fake.company_category())
+                category = Category.objects.create(user=user, name=fake.word())
                 for k in range(task_count):
                     task = Task.objects.create(
                         category=category,
