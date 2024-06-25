@@ -144,15 +144,18 @@ class TaskViewSet(viewsets.ModelViewSet):
         query_set = self.get_queryset()
         page = paginator.paginate_queryset(queryset=query_set, request=request)
         if page is not None:
-            serializer = self.serializer_class(page, many=True)
-            return paginator.get_paginated_response(serializer.data)
-        else:
-            serializer = self.serializer_class(query_set, many=True)
+            query_set = page
+        serializer = self.serializer_class(query_set, many=True)
 
         for data in serializer.data:
             task_id = data['id']
-            reminder = Reminder.objects.get(task_id=task_id)
+            try:
+                reminder = Reminder.objects.get(task_id=task_id)
+            except Reminder.DoesNotExist:
+                reminder = None
             if reminder:
                 data['reminder'] = ReminderSerializer(reminder).data
+        if page is not None:
+            return paginator.get_paginated_response(serializer.data)
         return Response({'data': serializer.data}, status=status.HTTP_200_OK)
 
