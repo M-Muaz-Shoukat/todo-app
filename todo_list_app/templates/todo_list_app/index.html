@@ -1,0 +1,18 @@
+<h2>Todo Dashboard</h2>
+<div style="color: green">
+    {% if messages %}
+        {% for message in messages %}
+        {{message}}
+        {% endfor %}
+    {% endif %}
+</div>
+{%if user.is_authenticated %}
+  <a href="{% url 'logout' %}">logout</a>
+{% else %}
+  <a href="{% url 'login' %}">login</a>
+  <a href="{% url 'register' %}">register</a>
+{% endif %}
+<ul>
+  <li><a href="{% url 'todo_list:all_categories' %}">categories</a></li>
+  <li><a href="{% url 'todo_list:tasks' %}">tasks</a></li>
+</ul>
