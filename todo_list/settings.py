@@ -77,6 +77,7 @@ CELERY_BEAT_SCHEDULE = {
 
 
 MIDDLEWARE = [
+    'middleware.request_count_and_avg_time.RequestCountAndAvgTime',
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
