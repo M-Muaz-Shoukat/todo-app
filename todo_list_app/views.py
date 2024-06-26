@@ -129,7 +129,7 @@ class TaskViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         query = self.request.query_params.get('q')
-        task_list = Task.objects.filter(category__user=self.request.user)
+        task_list = Task.objects.filter(Q(category__user=self.request.user) | Q(assigned_to=self.request.user))
 
         if query:
             task_list = task_list.filter(

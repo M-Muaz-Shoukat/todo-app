@@ -78,7 +78,7 @@ class TaskSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Task
-        fields = ['id', 'title', 'description', 'due_date', 'completed', 'category', 'reminder']
+        fields = ['id', 'title', 'description', 'due_date', 'completed', 'category', 'reminder', 'assigned_to']
 
     def create(self, validated_data):
         request = self.context.get('request')
@@ -87,7 +87,8 @@ class TaskSerializer(serializers.ModelSerializer):
             description=validated_data['description'],
             due_date=validated_data['due_date'],
             completed=validated_data['completed'],
-            category=validated_data['category']
+            category=validated_data['category'],
+            assigned_to=validated_data['assigned_to'],
         )
         reminder = None
         if validated_data.get('reminder') and validated_data['reminder'].get('remind_at'):
@@ -102,6 +103,7 @@ class TaskSerializer(serializers.ModelSerializer):
             'due_date': task.due_date,
             'completed': task.completed,
             'category': task.category,
+            'assigned_to': task.assigned_to,
             'reminder': reminder
         }
 
@@ -112,6 +114,7 @@ class TaskSerializer(serializers.ModelSerializer):
         instance.due_date = validated_data.get('due_date', instance.due_date)
         instance.completed = validated_data.get('completed', instance.completed)
         instance.category = validated_data.get('category', instance.category)
+        instance.assigned_to = validated_data.get('assigned_to', instance.assigned_to)
         instance.save()
         instance.reminder = Reminder.objects.get(task_id=instance.id)
         reminder_data = validated_data.get('reminder')
