@@ -39,6 +39,13 @@ def generate_otp():
     return otp
 
 
+def send_email_invite_to_assignee(instance):
+    subject = f'Invite for \"{instance.title}\" Task'
+    email_body = f"You have been invited to complete this task.\nThis task is assigned to you by {instance.category.user.email}"
+    from_email = settings.DEFAULT_FROM_EMAIL
+    send_email_task.delay(subject, email_body, from_email, [instance.assigned_to.email])
+
+
 @shared_task
 def send_email_task(subject, message, from_email, recipient_list):
     send_mail(subject, message, from_email, recipient_list)
